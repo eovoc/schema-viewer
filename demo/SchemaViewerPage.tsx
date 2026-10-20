@@ -1,7 +1,9 @@
-// Demo page: loads a JSON Schema from a URL.
+// Demo page: loads a JSON Schema from a URL, together with every schema it references.
 // The URL of the schema is kept in the address bar (?schema=…) so a link can be shared.
-// Step 1: shows the raw JSON. The UML diagram comes in the next steps.
+// Step 2: lists the loaded documents. The UML diagram comes in the next steps.
 import { useEffect, useState, type FormEvent } from "react";
+import { fileName, loadSchemaBundle } from "../src/core/loader";
+import type { SchemaBundle } from "../src/core/types";
 
 export const DEFAULT_SCHEMA = "https://eovoc.github.io/eof-eos-validator/schemas/eof-eos-schema-soft.json";
 
@@ -9,7 +11,7 @@ function schemaFromAddressBar(): string {
   return new URLSearchParams(window.location.search).get("schema") || DEFAULT_SCHEMA;
 }
 
-type Loaded = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; schema: unknown };
+type Loaded = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; bundle: SchemaBundle };
 
 export default function SchemaViewerPage() {
   const [url, setUrl] = useState(schemaFromAddressBar); // schema displayed
@@ -27,20 +29,13 @@ export default function SchemaViewerPage() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  // load the schema each time the URL changes
+  // load the schema and the documents it references each time the URL changes
   useEffect(() => {
     const controller = new AbortController();
-    fetch(url, { signal: controller.signal })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((schema) => {
-        if (!controller.signal.aborted) setResult({ url, loaded: { status: "ready", schema } });
-      })
-      .catch((e) => {
-        if (!controller.signal.aborted) setResult({ url, loaded: { status: "error", message: String(e.message ?? e) } });
-      });
+    loadSchemaBundle(url, { signal: controller.signal }).then(
+      (bundle) => !controller.signal.aborted && setResult({ url, loaded: { status: "ready", bundle } }),
+      (e) => !controller.signal.aborted && setResult({ url, loaded: { status: "error", message: e instanceof Error ? e.message : String(e) } })
+    );
     return () => controller.abort();
   }, [url]);
 
@@ -75,9 +70,63 @@ export default function SchemaViewerPage() {
         <section className="panel">
           {loaded.status === "loading" && <p className="message">Loading…</p>}
           {loaded.status === "error" && <p className="message message--error">Could not load the schema: {loaded.message}</p>}
-          {loaded.status === "ready" && <pre className="json">{JSON.stringify(loaded.schema, null, 2)}</pre>}
+          {loaded.status === "ready" && <Documents key={url} bundle={loaded.bundle} />}
         </section>
       </main>
     </div>
+  );
+}
+
+/** Table of the loaded documents; a click on a row shows its JSON */
+function Documents({ bundle }: { bundle: SchemaBundle }) {
+  const [shown, setShown] = useState(bundle.root);
+  const errorOf = (url: string) => bundle.errors.find((e) => e.url === url);
+  const definitionCount = (url: string) => {
+    const doc = bundle.documents[url];
+    return Object.keys(doc?.definitions ?? doc?.$defs ?? {}).length;
+  };
+
+  return (
+    <>
+      <table className="documents">
+        <thead>
+          <tr>
+            <th>Document</th>
+            <th>Definitions</th>
+            <th>Referenced by</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Object.keys(bundle.referencedBy).map((url) => {
+            const error = errorOf(url);
+            return (
+              <tr
+                key={url}
+                className={`${url === shown ? "selected" : ""} ${error ? "failed" : ""}`}
+                onClick={() => !error && setShown(url)}
+              >
+                <td>
+                  <a href={url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                    {fileName(url)}
+                  </a>
+                  {url === bundle.root && <span className="tag">root</span>}
+                </td>
+                <td>{error ? `not loaded: ${error.message}` : definitionCount(url)}</td>
+                <td>{bundle.referencedBy[url].map(fileName).join(", ") || "—"}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {bundle.errors
+        .filter((e) => !(e.url in bundle.referencedBy))
+        .map((e) => (
+          <p key={`${e.from}|${e.url}`} className="message message--error">
+            {fileName(e.from)}: {e.url}: {e.message}
+          </p>
+        ))}
+      <h2 className="json-title">{fileName(shown)}</h2>
+      <pre className="json">{JSON.stringify(bundle.documents[shown], null, 2)}</pre>
+    </>
   );
 }

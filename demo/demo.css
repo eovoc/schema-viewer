@@ -131,3 +131,60 @@ body {
   padding: 16px;
   font-size: 0.8rem;
 }
+
+/* ---- Loaded documents ---- */
+.documents {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.documents th,
+.documents td {
+  padding: 8px 16px;
+  text-align: left;
+  border-bottom: 1px solid #e3e7ec;
+}
+
+.documents th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+}
+
+.documents tbody tr {
+  cursor: pointer;
+}
+
+.documents tbody tr:hover {
+  background: #f5f7fa;
+}
+
+.documents tr.selected {
+  background: #eef1fe;
+}
+
+.documents tr.failed {
+  color: #b00020;
+  cursor: default;
+}
+
+.documents a {
+  color: #3d5ae0;
+  font-weight: 600;
+}
+
+.tag {
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: #eef1f4;
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
+.json-title {
+  margin: 16px 16px 0;
+  font-size: 0.9rem;
+}
