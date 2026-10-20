@@ -1,53 +1,90 @@
-// Demo page: loads a JSON Schema from a URL, together with every schema it references.
-// The URL of the schema is kept in the address bar (?schema=…) so a link can be shared.
-// Step 2: lists the loaded documents. The UML diagram comes in the next steps.
-import { useEffect, useState, type FormEvent } from "react";
-import { fileName, loadSchemaBundle } from "../src/core/loader";
-import type { SchemaBundle } from "../src/core/types";
+// Demo page: loads a JSON Schema from a URL (and every schema it references) and shows its definitions.
+// The page state is kept in the address bar, so a link can be shared and the back button works:
+//   ?schema=<URL of the root schema>&def=<definition, as a $ref from the root: "#/definitions/X", "mdj.json#/definitions/Y">
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { loadSchemaBundle, relativeRef } from "../src/core/loader";
+import { buildSchemaModel, findDefinition } from "../src/core/schemaModel";
+import type { DefId, SchemaModel } from "../src/core/types";
+import Toc from "../src/ui/Toc";
+import "../src/styles.css";
+import DefinitionPanel from "./DefinitionPanel";
 
 export const DEFAULT_SCHEMA = "https://eovoc.github.io/eof-eos-validator/schemas/eof-eos-schema-soft.json";
 
-function schemaFromAddressBar(): string {
-  return new URLSearchParams(window.location.search).get("schema") || DEFAULT_SCHEMA;
+interface PageState {
+  schema: string;
+  def?: string;
 }
 
-type Loaded = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; bundle: SchemaBundle };
+function readAddressBar(): PageState {
+  const params = new URLSearchParams(window.location.search);
+  return { schema: params.get("schema") || DEFAULT_SCHEMA, def: params.get("def") || undefined };
+}
+
+// readable query string: "/" and ":" are kept as is, "#" must be encoded
+const encode = (v: string) => encodeURIComponent(v).replace(/%2F/gi, "/").replace(/%3A/gi, ":");
+
+function writeAddressBar(state: PageState, replace = false) {
+  const params: string[] = [];
+  if (state.schema !== DEFAULT_SCHEMA) params.push(`schema=${encode(state.schema)}`);
+  if (state.def) params.push(`def=${encode(state.def)}`);
+  const url = `${window.location.pathname}${params.length ? `?${params.join("&")}` : ""}`;
+  if (replace) window.history.replaceState(null, "", url);
+  else window.history.pushState(null, "", url);
+}
+
+type Loaded = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; model: SchemaModel };
 
 export default function SchemaViewerPage() {
-  const [url, setUrl] = useState(schemaFromAddressBar); // schema displayed
-  const [draft, setDraft] = useState(url); // text of the input field
-  const [result, setResult] = useState<{ url: string; loaded: Loaded } | null>(null);
+  const [state, setState] = useState(readAddressBar);
+  const [draft, setDraft] = useState(state.schema); // text of the input field
+  const [result, setResult] = useState<{ schema: string; loaded: Loaded } | null>(null);
 
   // browser back / forward buttons
   useEffect(() => {
     const onPop = () => {
-      const u = schemaFromAddressBar();
-      setUrl(u);
-      setDraft(u);
+      const s = readAddressBar();
+      setState(s);
+      setDraft(s.schema);
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  // load the schema and the documents it references each time the URL changes
+  // load the schema and the documents it references, then build the UML model
+  const { schema } = state;
   useEffect(() => {
     const controller = new AbortController();
-    loadSchemaBundle(url, { signal: controller.signal }).then(
-      (bundle) => !controller.signal.aborted && setResult({ url, loaded: { status: "ready", bundle } }),
-      (e) => !controller.signal.aborted && setResult({ url, loaded: { status: "error", message: e instanceof Error ? e.message : String(e) } })
+    loadSchemaBundle(schema, { signal: controller.signal }).then(
+      (bundle) => !controller.signal.aborted && setResult({ schema, loaded: { status: "ready", model: buildSchemaModel(bundle) } }),
+      (e) => !controller.signal.aborted && setResult({ schema, loaded: { status: "error", message: e instanceof Error ? e.message : String(e) } })
     );
     return () => controller.abort();
-  }, [url]);
+  }, [schema]);
 
   const load = (e: FormEvent) => {
     e.preventDefault();
     const next = draft.trim();
-    if (!next || next === url) return;
-    setUrl(next);
-    window.history.pushState(null, "", next === DEFAULT_SCHEMA ? window.location.pathname : `?schema=${encodeURIComponent(next)}`);
+    if (!next || next === state.schema) return;
+    const s = { schema: next };
+    setState(s);
+    writeAddressBar(s);
   };
 
-  const loaded: Loaded = result?.url === url ? result.loaded : { status: "loading" };
+  const loaded: Loaded = result?.schema === schema ? result.loaded : { status: "loading" };
+  const model = loaded.status === "ready" ? loaded.model : undefined;
+
+  const select = useCallback(
+    (id: DefId) => {
+      if (!model) return;
+      const s = { schema, def: relativeRef(id, model.root) };
+      setState(s);
+      writeAddressBar(s);
+    },
+    [model, schema]
+  );
+
+  const selected = model && (state.def ? findDefinition(model, state.def) : model.defaultDefinition);
 
   return (
     <div className="page">
@@ -67,66 +104,35 @@ export default function SchemaViewerPage() {
           <button type="submit">Load</button>
         </form>
 
-        <section className="panel">
-          {loaded.status === "loading" && <p className="message">Loading…</p>}
-          {loaded.status === "error" && <p className="message message--error">Could not load the schema: {loaded.message}</p>}
-          {loaded.status === "ready" && <Documents key={url} bundle={loaded.bundle} />}
-        </section>
+        {loaded.status === "loading" && <p className="panel message">Loading…</p>}
+        {loaded.status === "error" && <p className="panel message message--error">Could not load the schema: {loaded.message}</p>}
+        {model && (
+          <div className="schema-viewer">
+            <Toc model={model} focus={selected} onSelect={select} />
+            <section className="panel">
+              {model.diagnostics.length > 0 && <Warnings messages={model.diagnostics} />}
+              {selected ? (
+                <DefinitionPanel model={model} id={selected} onSelect={select} />
+              ) : (
+                <p className="message">Definition not found: {state.def}</p>
+              )}
+            </section>
+          </div>
+        )}
       </main>
     </div>
   );
 }
 
-/** Table of the loaded documents; a click on a row shows its JSON */
-function Documents({ bundle }: { bundle: SchemaBundle }) {
-  const [shown, setShown] = useState(bundle.root);
-  const errorOf = (url: string) => bundle.errors.find((e) => e.url === url);
-  const definitionCount = (url: string) => {
-    const doc = bundle.documents[url];
-    return Object.keys(doc?.definitions ?? doc?.$defs ?? {}).length;
-  };
-
+function Warnings({ messages }: { messages: string[] }) {
   return (
-    <>
-      <table className="documents">
-        <thead>
-          <tr>
-            <th>Document</th>
-            <th>Definitions</th>
-            <th>Referenced by</th>
-          </tr>
-        </thead>
-        <tbody>
-          {Object.keys(bundle.referencedBy).map((url) => {
-            const error = errorOf(url);
-            return (
-              <tr
-                key={url}
-                className={`${url === shown ? "selected" : ""} ${error ? "failed" : ""}`}
-                onClick={() => !error && setShown(url)}
-              >
-                <td>
-                  <a href={url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-                    {fileName(url)}
-                  </a>
-                  {url === bundle.root && <span className="tag">root</span>}
-                </td>
-                <td>{error ? `not loaded: ${error.message}` : definitionCount(url)}</td>
-                <td>{bundle.referencedBy[url].map(fileName).join(", ") || "—"}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      {bundle.errors
-        .filter((e) => !(e.url in bundle.referencedBy))
-        .map((e) => (
-          <p key={`${e.from}|${e.url}`} className="message message--error">
-            {fileName(e.from)}: {e.url}: {e.message}
-          </p>
+    <details className="warnings">
+      <summary>⚠ {messages.length} warning{messages.length > 1 ? "s" : ""}</summary>
+      <ul>
+        {messages.map((m) => (
+          <li key={m}>{m}</li>
         ))}
-      <h2 className="json-title">{fileName(shown)}</h2>
-      <pre className="json">{JSON.stringify(bundle.documents[shown], null, 2)}</pre>
-    </>
+      </ul>
+    </details>
   );
 }

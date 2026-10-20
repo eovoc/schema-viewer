@@ -115,3 +115,97 @@ export async function loadSchemaBundle(rootUrl: string, options: LoadOptions = {
 
   return { root, documents, referencedBy, errors };
 }
+
+// ---------------------------------------------------------------------------
+// Resolution of a $ref to a location inside the loaded documents
+
+export const escapePointer = (segment: string) => segment.replace(/~/g, "~0").replace(/\//g, "~1");
+export const unescapePointer = (segment: string) => segment.replace(/~1/g, "/").replace(/~0/g, "~");
+
+/** Last segment of a JSON Pointer: "/definitions/thesaurus/product-types" -> "product-types" */
+export const pointerName = (pointer: string) => unescapePointer(pointer.slice(pointer.lastIndexOf("/") + 1));
+
+/** Value at a JSON Pointer ("" = the whole document) */
+export function getPointer(doc: JsonSchema, pointer: string): unknown {
+  if (pointer === "") return doc;
+  let value: unknown = doc;
+  for (const segment of pointer.slice(1).split("/")) {
+    if (!value || typeof value !== "object") return undefined;
+    value = (value as JsonSchema)[unescapePointer(segment)];
+  }
+  return value;
+}
+
+/** Location of a plain-name fragment ("#Foo"): a sub-schema with `$anchor: "Foo"` or (draft-07) `$id: "#Foo"` */
+function findAnchor(node: unknown, anchor: string, pointer = ""): string | undefined {
+  if (!node || typeof node !== "object") return undefined;
+  const obj = node as JsonSchema;
+  if (obj.$anchor === anchor || obj.$id === `#${anchor}`) return pointer;
+  for (const [key, value] of Object.entries(obj)) {
+    if (["enum", "const", "examples", "default"].includes(key)) continue;
+    const found = findAnchor(value, anchor, `${pointer}/${escapePointer(key)}`);
+    if (found !== undefined) return found;
+  }
+  return undefined;
+}
+
+export interface ResolvedRef {
+  /** "<document URL>#<JSON Pointer>" of the target, when it exists in the loaded documents */
+  id?: string;
+  /** Name to show when the target is not found */
+  label: string;
+}
+
+/**
+ * Finds the target of `ref`, written in document `from`, among the loaded `documents`.
+ * Tolerates (and reports) the malformed fragments found in mdj.json:
+ * "#CountryCode" (anchor never declared) is read as "#/definitions/CountryCode".
+ */
+export function resolveRef(ref: string, from: string, documents: Record<string, JsonSchema>, report: (message: string) => void): ResolvedRef {
+  const hash = ref.indexOf("#");
+  let fragment = hash < 0 ? "" : ref.slice(hash + 1);
+  try {
+    fragment = decodeURIComponent(fragment);
+  } catch {
+    // keep it as is
+  }
+  let url: string;
+  try {
+    url = new URL(hash < 0 ? ref : ref.slice(0, hash), from).href;
+  } catch {
+    report(`${fileName(from)}: invalid reference "${ref}"`);
+    return { label: ref };
+  }
+  if (/^https?:\/\/json-schema\.org\//.test(url)) return { label: "JSONSchema" };
+  const doc = documents[url];
+  if (!doc) return { label: ref }; // document not loaded: already reported by the loader
+
+  if (fragment === "" || fragment === "/") return { id: `${url}#`, label: fileName(url) };
+  let pointer = fragment;
+  if (!fragment.startsWith("/")) {
+    const anchor = findAnchor(doc, fragment);
+    if (anchor !== undefined) {
+      pointer = anchor;
+    } else {
+      const candidates = /^(definitions|\$defs)\//.test(fragment) ? [`/${fragment}`] : [`/definitions/${fragment}`, `/$defs/${fragment}`];
+      pointer = candidates.find((p) => getPointer(doc, p) !== undefined) ?? candidates[0];
+      report(`${fileName(from)}: malformed reference "${ref}" (JSON Pointer expected), read as ${fileName(url)}#${pointer}`);
+    }
+  }
+  const target = getPointer(doc, pointer);
+  if (!target || typeof target !== "object") {
+    report(`${fileName(from)}: reference "${ref}" not found`);
+    return { label: pointerName(pointer) || ref };
+  }
+  return { id: `${url}#${pointer}`, label: pointerName(pointer) };
+}
+
+/** Inverse of resolveRef for display and URLs: the shortest $ref, written in `base`, that points to `id` */
+export function relativeRef(id: string, base: string): string {
+  const hash = id.indexOf("#");
+  const [url, pointer] = [id.slice(0, hash), id.slice(hash + 1)];
+  if (url === base) return `#${pointer}`;
+  const dir = base.slice(0, base.lastIndexOf("/") + 1);
+  const relative = url.startsWith(dir) && !url.slice(dir.length).includes("/") ? url.slice(dir.length) : url;
+  return `${relative}#${pointer}`;
+}
