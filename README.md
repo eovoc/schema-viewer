@@ -6,8 +6,7 @@ The goal is a reusable React component (`@eovoc/schema-viewer`) and a demo page 
 (by default
 [eof-eos-schema-soft.json](https://eovoc.github.io/eof-eos-validator/schemas/eof-eos-schema-soft.json)).
 
-> Work in progress: for now the demo page lists the definitions and shows the selected one as text (UML notation).
-> The diagram comes next.
+> Work in progress: the diagram works in the demo page; packaging as a reusable component comes next.
 
 ## Run the demo
 
@@ -22,6 +21,18 @@ Another schema can be given in the field at the top of the page, or in the addre
 `http://localhost:5173/?schema=<URL of the schema>`. The selected definition is kept too:
 `&def=#/definitions/EarthObservation` (root document) or `&def=mdj.json#/definitions/LI_Lineage` (another one).
 The servers hosting the schemas must allow cross-origin requests (CORS); GitHub Pages does.
+
+## The diagram
+
+One definition at a time: the selected definition in the centre with all its attributes, what it references on the
+right (each edge starts from the attribute row), what references it on the left (including its parent class).
+
+- Click a class or an underlined type to open its diagram; hover an attribute to highlight its link.
+- **Neighbour details** also shows the attributes of the neighbouring classes; **JSON** shows the schema of the
+  definition; **⚠** lists the warnings (documents not loaded, malformed or unresolved `$ref`).
+- More than 30 neighbours on one side are grouped in a "+N more" box.
+
+Layout by [ELK](https://github.com/kieler/elkjs) (loaded on first use), rendering by [React Flow](https://reactflow.dev).
 
 ## Referenced schemas
 
@@ -71,15 +82,18 @@ src/                      the component (work in progress)
   core/                   the logic, no React
     loader.ts             loads a schema and the documents it references, resolves $ref
     schemaModel.ts        JSON Schema -> UML model (classes, attributes, relations)
+    focusGraph.ts         diagram of one definition: boxes, edges, ELK layout
     types.ts              shared types
   ui/
     Toc.tsx               table of contents
+    Diagram.tsx           the diagram: top bar, React Flow canvas, hover highlight, legend
+    UmlNode.tsx           a UML class box
+    UmlEdge.tsx           a UML edge and its markers (arrow, triangle, diamonds)
   styles.css              styles of the component
 demo/                     demo page
   index.html              HTML entry point
   main.tsx                starts React
-  SchemaViewerPage.tsx    the page: navigation bar, schema URL field, table of contents, definition
-  DefinitionPanel.tsx     the selected definition as text (temporary, replaced by the diagram)
+  SchemaViewerPage.tsx    the page: navigation bar, schema URL field, table of contents, diagram
   demo.css                styles of the page
 LICENSE                   MIT licence
 package.json              dependencies and npm scripts (dev, build, preview)

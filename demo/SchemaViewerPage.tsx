@@ -1,13 +1,13 @@
-// Demo page: loads a JSON Schema from a URL (and every schema it references) and shows its definitions.
+// Demo page: loads a JSON Schema from a URL (and every schema it references) and shows its definitions as UML diagrams.
 // The page state is kept in the address bar, so a link can be shared and the back button works:
 //   ?schema=<URL of the root schema>&def=<definition, as a $ref from the root: "#/definitions/X", "mdj.json#/definitions/Y">
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { loadSchemaBundle, relativeRef } from "../src/core/loader";
 import { buildSchemaModel, findDefinition } from "../src/core/schemaModel";
 import type { DefId, SchemaModel } from "../src/core/types";
+import Diagram from "../src/ui/Diagram";
 import Toc from "../src/ui/Toc";
 import "../src/styles.css";
-import DefinitionPanel from "./DefinitionPanel";
 
 export const DEFAULT_SCHEMA = "https://eovoc.github.io/eof-eos-validator/schemas/eof-eos-schema-soft.json";
 
@@ -109,30 +109,16 @@ export default function SchemaViewerPage() {
         {model && (
           <div className="schema-viewer">
             <Toc model={model} focus={selected} onSelect={select} />
-            <section className="panel">
-              {model.diagnostics.length > 0 && <Warnings messages={model.diagnostics} />}
-              {selected ? (
-                <DefinitionPanel model={model} id={selected} onSelect={select} />
-              ) : (
+            {selected ? (
+              <Diagram model={model} focus={selected} onSelect={select} />
+            ) : (
+              <section className="panel">
                 <p className="message">Definition not found: {state.def}</p>
-              )}
-            </section>
+              </section>
+            )}
           </div>
         )}
       </main>
     </div>
-  );
-}
-
-function Warnings({ messages }: { messages: string[] }) {
-  return (
-    <details className="warnings">
-      <summary>⚠ {messages.length} warning{messages.length > 1 ? "s" : ""}</summary>
-      <ul>
-        {messages.map((m) => (
-          <li key={m}>{m}</li>
-        ))}
-      </ul>
-    </details>
   );
 }
