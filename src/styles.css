@@ -215,6 +215,9 @@ button.uml-name:focus-visible { outline: 2px solid var(--uml-accent); outline-of
 .uml-row[data-row] { overflow: visible; }
 .uml-row__text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .uml-row--muted { color: var(--uml-muted); font-style: italic; }
+.uml-literals { overflow-y: auto; margin-right: -10px; padding-right: 10px; }
+.uml-literals__toggle { display: block; width: 100%; padding: 0; border: 0; background: none; font: inherit; font-style: italic; text-align: left; cursor: pointer; }
+.uml-literals__toggle:hover { color: var(--uml-accent); }
 .uml-type { color: var(--uml-type); }
 .uml-type--link {
   padding: 0;
@@ -245,8 +248,11 @@ button.uml-name:focus-visible { outline: 2px solid var(--uml-accent); outline-of
   background: rgba(255, 255, 255, 0.85);
   border-radius: 2px;
   pointer-events: none;
-  white-space: nowrap;
+  /* long labels (several roles) wrap instead of crossing the boxes; the space between columns is 150px */
+  width: max-content;
+  max-width: 140px;
 }
+.uml-edge-label--end { text-align: right; }
 .uml-edge-role { color: var(--uml-role); }
 .uml-edge-stereotype { color: var(--uml-muted); }
 .uml-edge--dependency .react-flow__edge-path,

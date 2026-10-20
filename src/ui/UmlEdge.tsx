@@ -77,7 +77,7 @@ export default function UmlEdge(props: Readonly<EdgeProps<UmlFlowEdge>>) {
       {(data?.stereotype || data?.role || data?.multiplicity) && (
         <EdgeLabelRenderer>
           <div
-            className="uml-edge-label nodrag nopan"
+            className={`uml-edge-label nodrag nopan${alignRight ? " uml-edge-label--end" : ""}`}
             style={{ transform: `translate(${alignRight ? "-100%" : "0"}, -100%) translate(${x + dx}px, ${y - 2}px)` }}
           >
             {data.stereotype && <span className="uml-edge-stereotype">{data.stereotype} </span>}

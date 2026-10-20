@@ -121,11 +121,13 @@ Another schema can be given in the field at the top of the page, or in the addre
 
 One definition at a time: the selected definition in the centre with all its attributes, what it references on the
 right (each edge starts from the attribute row), what references it on the left (including its parent class).
+Each edge shows the name of the attribute and its multiplicity, next to the class at the other end.
 
 - Click a class or an underlined type to open its diagram; hover an attribute to highlight its link.
 - **Neighbour details** also shows the attributes of the neighbouring classes; **JSON** shows the schema of the
   definition; **⚠** lists the warnings (documents not loaded, malformed or unresolved `$ref`).
 - More than 30 neighbours on one side are grouped in a "+N more" box.
+- Large enumerations show their first 14 values; "… +N (show all)" opens the full list, scrollable inside the box.
 
 Layout by [ELK](https://github.com/kieler/elkjs) (loaded on first use), rendering by [React Flow](https://reactflow.dev).
 

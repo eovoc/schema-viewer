@@ -62,6 +62,8 @@ export type UmlNodeData = {
   stereotype?: string;
   kind: Classifier["kind"] | "more";
   rows: RowData[];
+  /** Enumeration with more values than rows: all its values, shown in a scrollable list on demand */
+  allLiterals?: string[];
   isFocus: boolean;
   compact: boolean;
   italic: boolean;
@@ -163,7 +165,8 @@ function rowsFor(c: Classifier, full: boolean): RowData[] {
       return [];
     case "enumeration": {
       const rows: RowData[] = c.literals.slice(0, MAX_LITERALS).map((l, i) => ({ id: `l${i}`, text: l }));
-      if (c.literals.length > MAX_LITERALS) rows.push({ id: "more", text: `… +${c.literals.length - MAX_LITERALS}`, muted: true });
+      // the last row opens the full list (scrollable, in the same box: see UmlNode)
+      if (c.literals.length > MAX_LITERALS) rows.push({ id: "more", text: `… +${c.literals.length - MAX_LITERALS} (show all)`, muted: true });
       return rows;
     }
     default:
@@ -204,6 +207,7 @@ function makeNode(c: Classifier, isFocus: boolean, full: boolean, measure: Measu
       navigable: !isFocus,
       file: c.file,
       comment: c.comment,
+      allLiterals: c.kind === "enumeration" && c.literals.length > MAX_LITERALS ? c.literals : undefined,
     },
   };
 }
@@ -296,6 +300,7 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
           sourceHandle: `a:${role}`,
           target: g.neighbour,
           targetHandle: "in",
+          label: role,
           multiplicity: attr?.multiplicity ?? "1",
           labelAt: "target",
           triangleAtSource: false,
@@ -316,6 +321,7 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
       });
     }
   });
+  combineLabels(edges.filter((e) => e.source === focus && e.labelAt === "target" && e.label));
   if (nodes.has("more:right")) {
     edges.push({ id: "more:right", kind: "association", source: focus, sourceHandle: "out", target: "more:right", targetHandle: "in", labelAt: "target", triangleAtSource: false, layout: true });
   }
@@ -341,8 +347,10 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
           sourceHandle: row ? row.id : "out",
           target: focus,
           targetHandle: "in",
+          label: role,
           multiplicity: n.attributes.find((a) => a.name === role)?.multiplicity ?? "1",
-          labelAt: "target",
+          // next to the attribute row: one row per edge, so the labels never overlap
+          labelAt: "source",
           triangleAtSource: false,
           layout: true,
         });
@@ -393,6 +401,25 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
 
   await layout(Array.from(nodes.values()), edges);
   return { focus, nodes: Array.from(nodes.values()), edges, hidden };
+}
+
+/**
+ * Several attributes of the focus can lead to the same class (e.g. MD_Metadata has four attributes of type
+ * CI_Citation): their edges arrive at the same point, so their labels are written once, together.
+ */
+function combineLabels(edges: GraphEdge[]) {
+  const byTarget = new Map<string, GraphEdge[]>();
+  edges.forEach((e) => byTarget.set(e.target, [...(byTarget.get(e.target) ?? []), e]));
+  byTarget.forEach((es) => {
+    if (es.length < 2) return;
+    const sameMultiplicity = es.every((e) => e.multiplicity === es[0].multiplicity);
+    es[0].label = es.map((e) => (sameMultiplicity ? e.label : `${e.label} [${e.multiplicity}]`)).join(", ");
+    es[0].multiplicity = sameMultiplicity ? es[0].multiplicity : undefined;
+    es.slice(1).forEach((e) => {
+      e.label = undefined;
+      e.multiplicity = undefined;
+    });
+  });
 }
 
 function ports(n: GraphNode): ElkPort[] {

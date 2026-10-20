@@ -1,9 +1,9 @@
 // UML class (React Flow node): header (stereotype + name), attribute compartment.
 // Style taken from uml-react: header colour per kind, types in blue, multiplicities and constraints in grey.
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { RowData, UmlNodeData } from "../core/focusGraph";
-import { headerHeight } from "../core/focusGraph";
+import { headerHeight, ROW_H } from "../core/focusGraph";
 
 export type UmlFlowNodeData = UmlNodeData & {
   onNavigate: (id: string) => void;
@@ -64,6 +64,44 @@ function Row({ row, onNavigate, onHover }: Readonly<RowProps>) {
   );
 }
 
+/**
+ * Values of a large enumeration: the first ones and "… +N (show all)"; a click shows every value in a
+ * scrollable list of the same height (the box keeps its size, so the layout does not change).
+ */
+function Literals({ rows, all }: Readonly<{ rows: RowData[]; all: string[] }>) {
+  const [expanded, setExpanded] = useState(false);
+  const shown = rows.slice(0, -1); // without the "… +N" row
+  const toggle = (
+    <button type="button" className="uml-row uml-row--muted uml-literals__toggle nodrag" onClick={(e) => {
+      e.stopPropagation();
+      setExpanded((x) => !x);
+    }}>
+      {expanded ? `Show less (${all.length} values)` : rows[rows.length - 1].text}
+    </button>
+  );
+  if (!expanded) {
+    return (
+      <>
+        {shown.map((r) => (
+          <div key={r.id} className="uml-row">{r.text}</div>
+        ))}
+        {toggle}
+      </>
+    );
+  }
+  return (
+    <>
+      {/* nowheel / nopan: the wheel and the drag scroll the list instead of zooming / moving the diagram */}
+      <div className="uml-literals nowheel nopan nodrag" style={{ height: shown.length * ROW_H }}>
+        {all.map((l, i) => (
+          <div key={i} className="uml-row" title={l}>{l}</div>
+        ))}
+      </div>
+      {toggle}
+    </>
+  );
+}
+
 function UmlNode({ id, data }: Readonly<NodeProps<UmlFlowNode>>) {
   const classes = [
     "uml-node",
@@ -107,9 +145,11 @@ function UmlNode({ id, data }: Readonly<NodeProps<UmlFlowNode>>) {
       </div>
       {data.kind !== "more" && (
         <div className={`uml-body${data.rows.length ? "" : " uml-body--empty"}`}>
-          {data.rows.map((r) => (
-            <Row key={r.id} row={r} onNavigate={data.onNavigate} onHover={(rowId) => data.onHoverRow(id, rowId)} />
-          ))}
+          {data.allLiterals ? (
+            <Literals rows={data.rows} all={data.allLiterals} />
+          ) : (
+            data.rows.map((r) => <Row key={r.id} row={r} onNavigate={data.onNavigate} onHover={(rowId) => data.onHoverRow(id, rowId)} />)
+          )}
         </div>
       )}
     </div>
