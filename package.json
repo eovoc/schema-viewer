@@ -1,26 +1,56 @@
 {
   "name": "@eovoc/schema-viewer",
   "version": "0.1.0",
-  "description": "Browse any JSON Schema as interactive UML class diagrams.",
+  "description": "React component that shows the definitions of a JSON Schema as interactive UML class diagrams.",
   "license": "MIT",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eovoc/schema-viewer.git"
+  },
   "type": "module",
+  "main": "./dist/schema-viewer.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/schema-viewer.js"
+    },
+    "./style.css": "./dist/style.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "build": "npm run build:lib && npm run build:demo",
+    "build:lib": "vite build --config vite.lib.config.ts && tsc -p tsconfig.lib.json",
+    "build:demo": "tsc && vite build",
+    "preview": "vite preview",
+    "prepare": "npm run build:lib"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
   },
   "dependencies": {
     "@xyflow/react": "12.12.0",
-    "elkjs": "0.12.0",
-    "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "elkjs": "0.12.0"
   },
   "devDependencies": {
+    "@types/node": "22.20.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "5.2.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "typescript": "6.0.3",
     "vite": "7.3.7"
+  },
+  "engines": {
+    "node": ">=20.19"
   }
 }

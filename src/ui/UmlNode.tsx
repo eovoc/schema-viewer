@@ -12,7 +12,13 @@ export type UmlFlowNodeData = UmlNodeData & {
 };
 export type UmlFlowNode = Node<UmlFlowNodeData, "uml">;
 
-function Row({ row, onNavigate, onHover }: { row: RowData; onNavigate: (id: string) => void; onHover: (rowId: string | null) => void }) {
+interface RowProps {
+  row: RowData;
+  onNavigate: (id: string) => void;
+  onHover: (rowId: string | null) => void;
+}
+
+function Row({ row, onNavigate, onHover }: Readonly<RowProps>) {
   if (row.text !== undefined) {
     return <div className={`uml-row${row.muted ? " uml-row--muted" : ""}`}>{row.text}</div>;
   }
@@ -58,7 +64,7 @@ function Row({ row, onNavigate, onHover }: { row: RowData; onNavigate: (id: stri
   );
 }
 
-function UmlNode({ id, data }: NodeProps<UmlFlowNode>) {
+function UmlNode({ id, data }: Readonly<NodeProps<UmlFlowNode>>) {
   const classes = [
     "uml-node",
     `uml-node--${data.kind}`,
@@ -67,24 +73,37 @@ function UmlNode({ id, data }: NodeProps<UmlFlowNode>) {
   ]
     .filter(Boolean)
     .join(" ");
+  const nameClass = `uml-name nodrag${data.italic ? " uml-name--italic" : ""}`;
   const headerTop = headerHeight(data.stereotype) / 2;
   const headerHandle = { top: headerTop };
   return (
     <div
       className={classes}
       title={data.comment}
-      role={data.navigable ? "link" : undefined}
-      tabIndex={data.navigable ? 0 : undefined}
-      aria-label={data.navigable ? `Show ${data.name}` : undefined}
-      onKeyDown={(e) => data.navigable && e.key === "Enter" && data.onNavigate(id)}
     >
       <Handle type="target" position={Position.Left} id="in" className="uml-handle" style={headerHandle} isConnectable={false} />
       <Handle type="source" position={Position.Right} id="out" className="uml-handle" style={headerHandle} isConnectable={false} />
       <Handle type="source" position={Position.Left} id="out-l" className="uml-handle" style={headerHandle} isConnectable={false} />
       <Handle type="target" position={Position.Right} id="in-r" className="uml-handle" style={headerHandle} isConnectable={false} />
-      <div className="uml-header" style={{ height: headerHeight(data.stereotype) }}>
+      {/* the "+N more" box is a header only */}
+      <div className="uml-header" style={{ height: data.kind === "more" ? "100%" : headerHeight(data.stereotype) }}>
         {data.stereotype && <div className="uml-stereotype">{data.stereotype}</div>}
-        <div className={`uml-name${data.italic ? " uml-name--italic" : ""}`}>{data.name}</div>
+        {data.navigable ? (
+          // a real button: reachable with Tab, opened with Enter (a click anywhere on the box works too)
+          <button
+            type="button"
+            className={nameClass}
+            aria-label={`Show ${data.name}`}
+            onClick={(e) => {
+              e.stopPropagation(); // otherwise the click on the box navigates a second time
+              data.onNavigate(id);
+            }}
+          >
+            {data.name}
+          </button>
+        ) : (
+          <div className={nameClass}>{data.name}</div>
+        )}
       </div>
       {data.kind !== "more" && (
         <div className={`uml-body${data.rows.length ? "" : " uml-body--empty"}`}>

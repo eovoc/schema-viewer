@@ -11,7 +11,10 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "noEmit": true,
-    "types": ["vite/client"]
+    "types": ["vite/client", "node"],
+    "paths": {
+      "@eovoc/schema-viewer": ["./src/index.ts"]
+    }
   },
-  "include": ["src", "demo", "vite.config.ts"]
+  "include": ["src", "demo", "vite.config.ts", "vite.lib.config.ts"]
 }

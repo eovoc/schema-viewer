@@ -15,7 +15,7 @@ interface Section {
   groups: { group?: string; items: Classifier[] }[];
 }
 
-export default function Toc({ model, focus, onSelect }: Props) {
+export default function Toc({ model, focus, onSelect }: Readonly<Props>) {
   const [query, setQuery] = useState("");
   const activeRef = useRef<HTMLButtonElement>(null);
 

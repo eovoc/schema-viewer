@@ -26,10 +26,11 @@
   gap: 12px;
   height: 100%;
   min-height: 0;
-  font-family: var(--uml-font);
+  font-family: var(--uml-font), sans-serif;
   color: var(--uml-text);
 }
 .schema-viewer *, .schema-viewer *::before, .schema-viewer *::after { box-sizing: border-box; }
+.schema-viewer--no-toc { grid-template-columns: minmax(0, 1fr); }
 
 /* ---- Table of contents ---- */
 .uml-toc {
@@ -180,7 +181,7 @@
   background: var(--uml-surface);
   border: 1.2px solid var(--uml-border);
   border-radius: 4px;
-  font-family: var(--uml-font);
+  font-family: var(--uml-font), sans-serif;
   font-size: 12px;
   color: var(--uml-text);
   overflow: hidden;
@@ -201,10 +202,12 @@
 .uml-node--enumeration .uml-header, .uml-node--codelist .uml-header { background: var(--uml-header-enumeration); }
 .uml-node--datatype .uml-header { background: var(--uml-header-datatype); }
 .uml-node--more { border-style: dashed; }
-.uml-node--more .uml-header { background: #fff; border-bottom: 0; color: var(--uml-muted); height: 100% !important; }
+.uml-node--more .uml-header { background: #fff; border-bottom: 0; color: var(--uml-muted); }
 .uml-stereotype { font-size: 10.8px; color: var(--uml-muted); line-height: 13px; }
 .uml-name { font-weight: 700; line-height: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .uml-name--italic { font-style: italic; }
+button.uml-name { display: block; margin: 0 auto; padding: 0; border: 0; background: none; font: inherit; font-weight: 700; color: inherit; cursor: pointer; }
+button.uml-name:focus-visible { outline: 2px solid var(--uml-accent); outline-offset: 2px; }
 .uml-body { padding: 5px 10px; }
 .uml-body--empty { padding: 0; height: 10px; }
 .uml-row { position: relative; height: 18px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -236,7 +239,7 @@
 .uml-edge-label {
   position: absolute;
   padding: 0 3px;
-  font-family: var(--uml-font);
+  font-family: var(--uml-font), sans-serif;
   font-size: 11px;
   line-height: 13px;
   background: rgba(255, 255, 255, 0.85);

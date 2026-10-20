@@ -12,14 +12,14 @@ body {
   color: #1a1a2e;
 }
 
-/* ---- Navigation bar (same as the validator) ---- */
+/* ---- Navigation bar (style of the validator, blue darkened for contrast: white text 5.6:1) ---- */
 .navbar {
   display: flex;
   align-items: center;
   gap: 24px;
   padding: 0 32px;
   height: 52px;
-  background: #4f6ef7;
+  background: #3d5ae0;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
 }
 
@@ -37,7 +37,7 @@ body {
 }
 
 .nav-link {
-  color: #a0aec0;
+  color: #e2e6fa; /* inactive link, 4.5:1 */
   text-decoration: none;
   font-size: 0.9rem;
   font-weight: 500;
@@ -48,7 +48,7 @@ body {
 
 .nav-link:hover {
   color: #fff;
-  background: rgba(255, 255, 255, 0.08);
+  background: #4d67e2; /* white text 4.8:1 */
 }
 
 .nav-link.active {
@@ -96,7 +96,7 @@ body {
   padding: 8px 18px;
   border: 0;
   border-radius: 6px;
-  background: #4f6ef7;
+  background: #3d5ae0;
   color: #fff;
   font: inherit;
   font-weight: 600;
@@ -104,30 +104,11 @@ body {
 }
 
 .schema-form button:hover {
-  background: #3d5ae0;
+  background: #3451d1;
 }
 
-.panel {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-}
-
-.message {
-  padding: 24px;
-  margin: 0;
-  color: #6b7280;
-}
-
-.message--error {
-  color: #b00020;
-}
-
-/* ---- Table of contents + diagram ---- */
-.page-content > .schema-viewer {
+/* the viewer fills the rest of the page */
+.page-viewer {
   flex: 1;
   min-height: 0;
 }

@@ -56,7 +56,7 @@ export function orthogonalPath(route: Point[], source: Point, target: Point): st
   return `${d} L ${end.x},${end.y}`;
 }
 
-export default function UmlEdge(props: EdgeProps<UmlFlowEdge>) {
+export default function UmlEdge(props: Readonly<EdgeProps<UmlFlowEdge>>) {
   const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerStart, markerEnd, data } = props;
   const path =
     data?.points && data.points.length >= 2
@@ -119,7 +119,7 @@ export function edgeMarkers(kind: RelationKind, parentAtSource: boolean, highlig
   }
 }
 
-function Marker({ shape, color, highlighted }: { shape: Shape; color: string; highlighted: boolean }) {
+function Marker({ shape, color, highlighted }: Readonly<{ shape: Shape; color: string; highlighted: boolean }>) {
   const common = { markerUnits: "userSpaceOnUse" as const, orient: "auto-start-reverse" };
   const id = markerId(shape, highlighted);
   switch (shape) {

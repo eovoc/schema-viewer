@@ -33,7 +33,7 @@ interface Props {
   neighbourDetails?: boolean;
 }
 
-export default function Diagram({ model, focus, onSelect, neighbourDetails = false }: Props) {
+export default function Diagram({ model, focus, onSelect, neighbourDetails = false }: Readonly<Props>) {
   // scopes the hover CSS, so that two diagrams on one page do not interfere
   const scope = useId();
   const [details, setDetails] = useState(neighbourDetails);
@@ -268,7 +268,9 @@ function highlightCss(edges: FocusGraph["edges"], scope: string): string {
     nodes.add(e.target);
     const path = `${root} .react-flow__edge[data-id=${attr(e.id)}] .react-flow__edge-path`;
     const m = edgeMarkers(e.kind, e.triangleAtSource, true);
-    const markers = `${m.start ? `marker-start: url(#${m.start});` : ""}${m.end ? `marker-end: url(#${m.end});` : ""}`;
+    const markerStart = m.start ? `marker-start: url(#${m.start});` : "";
+    const markerEnd = m.end ? `marker-end: url(#${m.end});` : "";
+    const markers = markerStart + markerEnd;
     rules.push(`${path} { stroke: var(--uml-accent); stroke-width: 1.8; ${markers} }`);
     if (e.sourceHandle.startsWith("a:")) {
       rules.push(`${root} .react-flow__node[data-id=${attr(e.source)}] .uml-row[data-row=${attr(e.sourceHandle)}] { background: #fdeee6; }`);
@@ -290,7 +292,7 @@ const LEGEND: { kind: RelationKind; label: string; title: string }[] = [
   { kind: "dependency", label: "dependency «use»", title: "Use of a codelist or data type (shown in its own view)" },
 ];
 
-function LegendLine({ kind }: { kind: RelationKind }) {
+function LegendLine({ kind }: Readonly<{ kind: RelationKind }>) {
   // in the legend, inheritance is drawn from the subclass (left) to the parent (right)
   const m = edgeMarkers(kind, false);
   const dashed = kind === "dependency" || kind === "realization";
@@ -311,7 +313,7 @@ function LegendLine({ kind }: { kind: RelationKind }) {
   );
 }
 
-function Legend({ hint }: { hint?: string }) {
+function Legend({ hint }: Readonly<{ hint?: string }>) {
   return (
     <div className="uml-legend">
       {LEGEND.map((l) => (
