@@ -111,6 +111,8 @@ export interface FocusGraph {
 
 export interface FocusGraphOptions {
   neighbourDetails?: boolean;
+  /** Show the constraints in braces ({unique}, {closed}, {format=…}…). Default true */
+  constraints?: boolean;
   maxPerSide?: number;
   measure?: MeasureText;
 }
@@ -140,7 +142,7 @@ export function rowText(r: RowData): string {
   return s;
 }
 
-function rowsFor(c: Classifier, full: boolean): RowData[] {
+function rowsFor(c: Classifier, full: boolean, constraints: boolean): RowData[] {
   if (!full) {
     if (c.kind === "abstract") return [{ id: "summary", text: plural(c.members.length, "subclass", "subclasses"), muted: true }];
     return [{ id: "summary", text: plural(c.attributes.length, "attribute", "attributes"), muted: true }];
@@ -153,12 +155,12 @@ function rowsFor(c: Classifier, full: boolean): RowData[] {
         type: a.type,
         value: a.value,
         multiplicity: a.multiplicity,
-        constraints: a.constraints,
+        constraints: constraints ? a.constraints : undefined,
         required: a.required,
         target: a.target,
         port: a.refs.length > 0,
       }));
-      if (c.constraints.length) rows.push({ id: "constraints", text: `{${c.constraints.join(", ")}}`, muted: true });
+      if (constraints && c.constraints.length) rows.push({ id: "constraints", text: `{${c.constraints.join(", ")}}`, muted: true });
       return rows;
     }
     case "abstract":
@@ -174,9 +176,9 @@ function rowsFor(c: Classifier, full: boolean): RowData[] {
   }
 }
 
-function makeNode(c: Classifier, isFocus: boolean, full: boolean, measure: MeasureText): GraphNode {
+function makeNode(c: Classifier, isFocus: boolean, full: boolean, measure: MeasureText, constraints = true): GraphNode {
   const stereotype = STEREOTYPES[c.kind];
-  const rows = rowsFor(c, isFocus || full);
+  const rows = rowsFor(c, isFocus || full, constraints);
   const width = Math.round(
     Math.min(
       MAX_W,
@@ -250,13 +252,13 @@ let elk: Promise<ElkEngine> | undefined;
 const getElk = () => (elk ??= import("elkjs/lib/elk.bundled.js").then((m) => new m.default()));
 
 export async function buildFocusGraph(model: SchemaModel, focus: DefId, options: FocusGraphOptions = {}): Promise<FocusGraph> {
-  const { neighbourDetails = false, maxPerSide = 30, measure = measureText } = options;
+  const { neighbourDetails = false, constraints = true, maxPerSide = 30, measure = measureText } = options;
   const fc = model.classifiers.get(focus);
   if (!fc) throw new Error(`Unknown definition: ${focus}`);
 
   const nodes = new Map<string, GraphNode>();
   const edges: GraphEdge[] = [];
-  nodes.set(focus, makeNode(fc, true, true, measure));
+  nodes.set(focus, makeNode(fc, true, true, measure, constraints));
 
   const drawable = (id: DefId) => id !== focus && isDrawable(model.classifiers.get(id));
   const outRels = model.relations.filter((r) => referrerOf(r) === focus && drawable(referencedOf(r)));
@@ -289,7 +291,7 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
     "right"
   );
   right.forEach((g) => {
-    if (!nodes.has(g.neighbour)) nodes.set(g.neighbour, makeNode(model.classifiers.get(g.neighbour)!, false, neighbourDetails, measure));
+    if (!nodes.has(g.neighbour)) nodes.set(g.neighbour, makeNode(model.classifiers.get(g.neighbour)!, false, neighbourDetails, measure, constraints));
     if (!isInheritance(g.kind)) {
       g.roles.forEach((role) => {
         const attr = fc.attributes.find((a) => a.name === role);
@@ -332,7 +334,7 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
   const back = inGroups.filter((g) => onRight.has(g.neighbour));
   left.forEach((g) => {
     const n = model.classifiers.get(g.neighbour)!;
-    if (!nodes.has(g.neighbour)) nodes.set(g.neighbour, makeNode(n, false, neighbourDetails, measure));
+    if (!nodes.has(g.neighbour)) nodes.set(g.neighbour, makeNode(n, false, neighbourDetails, measure, constraints));
     const label = g.roles.length ? g.roles.join(", ") : undefined;
     if (!isInheritance(g.kind) && neighbourDetails) {
       const node = nodes.get(g.neighbour)!;

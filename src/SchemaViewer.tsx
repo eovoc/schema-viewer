@@ -28,6 +28,8 @@ export interface SchemaViewerProps {
   showToc?: boolean;
   /** Initial state of "Neighbour details" (attributes of the neighbouring classes). Default false */
   neighbourDetails?: boolean;
+  /** Initial state of "Constraints" ({unique}, {closed}, {format=…}… in the boxes). Default true */
+  showConstraints?: boolean;
   className?: string;
   style?: CSSProperties;
 }
@@ -35,7 +37,7 @@ export interface SchemaViewerProps {
 type Loaded = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; model: SchemaModel };
 
 export default function SchemaViewer(props: Readonly<SchemaViewerProps>) {
-  const { src, selected, onSelect, fetchSchema, showToc = true, neighbourDetails = false, className, style } = props;
+  const { src, selected, onSelect, fetchSchema, showToc = true, neighbourDetails = false, showConstraints = true, className, style } = props;
   const controlled = "selected" in props;
 
   // callbacks are read through a ref: a new function on each render of the parent must not reload the schema
@@ -83,7 +85,7 @@ export default function SchemaViewer(props: Readonly<SchemaViewerProps>) {
       {model && showToc && <Toc model={model} focus={focus} onSelect={select} />}
       {model &&
         (focus ? (
-          <Diagram model={model} focus={focus} onSelect={select} neighbourDetails={neighbourDetails} />
+          <Diagram model={model} focus={focus} onSelect={select} neighbourDetails={neighbourDetails} constraints={showConstraints} />
         ) : (
           <p className="uml-main uml-message">
             {requested ? `Definition not found: ${requested}` : "This schema has no definitions."}

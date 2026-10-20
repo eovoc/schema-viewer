@@ -51,6 +51,7 @@ The servers hosting the schemas must allow cross-origin requests (CORS); GitHub 
 | `fetchSchema` | `(url, signal) => Promise<object>` | `fetch` | How to download a schema, e.g. to add an authentication header |
 | `showToc` | `boolean` | `true` | Show the table of contents |
 | `neighbourDetails` | `boolean` | `false` | Initial state of "Neighbour details" |
+| `showConstraints` | `boolean` | `true` | Initial state of "Constraints": `{unique}`, `{closed}`, `{format=…}`… in the boxes |
 | `className`, `style` | | | Applied to the root element |
 
 Without `selected`, the viewer keeps the selection itself. The default definition is the target of the root `$ref`,
@@ -124,7 +125,8 @@ right (each edge starts from the attribute row), what references it on the left 
 Each edge shows the name of the attribute and its multiplicity, next to the class at the other end.
 
 - Click a class or an underlined type to open its diagram; hover an attribute to highlight its link.
-- **Neighbour details** also shows the attributes of the neighbouring classes; **JSON** shows the schema of the
+- **Constraints** shows or hides the constraints in braces (`{unique}`, `{closed}`, `{format=…}`…);
+  **Neighbour details** also shows the attributes of the neighbouring classes; **JSON** shows the schema of the
   definition; **⚠** lists the warnings (documents not loaded, malformed or unresolved `$ref`).
 - More than 30 neighbours on one side are grouped in a "+N more" box.
 - Large enumerations show their first 14 values; "… +N (show all)" opens the full list, scrollable inside the box.
@@ -167,6 +169,7 @@ Written for draft-07 schemas (`definitions`); `$defs` and `$anchor` are read too
 | other simple types | «datatype» |
 | `const` | `name = "value"` |
 | `uniqueItems`, `format`, `pattern`, bounds | `{unique}`, `{format=…}`, `{pattern=…}`, `{>=…}` |
+| `additionalProperties: false` | `{closed}`: no other property allowed |
 | object grouping definitions without being a schema (`definitions/thesaurus/*`) | its children are definitions, grouped under its name |
 | root schema that is an object | class named after the file |
 | `$ref` to the draft-07 meta-schema | type `JSONSchema` |

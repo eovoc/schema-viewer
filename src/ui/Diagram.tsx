@@ -31,12 +31,15 @@ interface Props {
   onSelect: (id: DefId) => void;
   /** Initial state of "Neighbour details" (attributes of the neighbouring classes) */
   neighbourDetails?: boolean;
+  /** Initial state of "Constraints" ({unique}, {closed}, {format=…}…) */
+  constraints?: boolean;
 }
 
-export default function Diagram({ model, focus, onSelect, neighbourDetails = false }: Readonly<Props>) {
+export default function Diagram({ model, focus, onSelect, neighbourDetails = false, constraints = true }: Readonly<Props>) {
   // scopes the hover CSS, so that two diagrams on one page do not interfere
   const scope = useId();
   const [details, setDetails] = useState(neighbourDetails);
+  const [showConstraints, setShowConstraints] = useState(constraints);
   const [panel, setPanel] = useState<"none" | "json" | "diagnostics">("none");
   // last computed diagram: kept on screen while the next one is computed (no "Computing…" flash)
   const [graph, setGraph] = useState<{ key: string; model: SchemaModel; graph: FocusGraph } | null>(null);
@@ -44,18 +47,18 @@ export default function Diagram({ model, focus, onSelect, neighbourDetails = fal
   // What the pointer is on: a node, one attribute row of a node, or one edge
   const [hovered, setHovered] = useState<Hover | null>(null);
   const hoverRow = useCallback((node: string, row: string | null) => setHovered(row ? { node, row } : { node }), []);
-  const key = `${focus}|${details}`;
+  const key = `${focus}|${details}|${showConstraints}`;
 
   useEffect(() => {
     let cancelled = false;
-    buildFocusGraph(model, focus, { neighbourDetails: details }).then(
+    buildFocusGraph(model, focus, { neighbourDetails: details, constraints: showConstraints }).then(
       (g) => !cancelled && setGraph({ key, model, graph: g }),
       (e) => !cancelled && setGraphError({ key, message: e instanceof Error ? e.message : String(e) })
     );
     return () => {
       cancelled = true;
     };
-  }, [model, focus, details, key]);
+  }, [model, focus, details, showConstraints, key]);
 
   // never show a diagram computed for another schema
   const current = graph && graph.model === model ? graph : null;
@@ -164,6 +167,9 @@ export default function Diagram({ model, focus, onSelect, neighbourDetails = fal
         <div className="uml-focusbar__actions">
           <label>
             <input type="checkbox" checked={details} onChange={(e) => setDetails(e.target.checked)} /> Neighbour details
+          </label>
+          <label title="Constraints in braces: {unique}, {closed}, {format=…}…">
+            <input type="checkbox" checked={showConstraints} onChange={(e) => setShowConstraints(e.target.checked)} /> Constraints
           </label>
           <button type="button" onClick={() => setPanel((p) => (p === "json" ? "none" : "json"))} aria-pressed={panel === "json"}>
             JSON
