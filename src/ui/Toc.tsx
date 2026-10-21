@@ -26,9 +26,8 @@ export default function Toc({ model, focus, onSelect }: Readonly<Props>) {
       const inFile = all.filter((c) => c.file === file);
       const matching = inFile.filter((c) => c.name.toLowerCase().includes(q) || (c.group ?? "").toLowerCase().includes(q));
       const groups = new Map<string | undefined, Classifier[]>();
-      matching
-        .sort((a, b) => (a.group ?? "").localeCompare(b.group ?? "") || a.name.localeCompare(b.name))
-        .forEach((c) => groups.set(c.group, [...(groups.get(c.group) ?? []), c]));
+      matching.sort((a, b) => (a.group ?? "").localeCompare(b.group ?? "") || a.name.localeCompare(b.name));
+      matching.forEach((c) => groups.set(c.group, [...(groups.get(c.group) ?? []), c]));
       return { file, total: inFile.length, groups: Array.from(groups, ([group, items]) => ({ group, items })) };
     });
   }, [model, query]);

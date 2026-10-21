@@ -81,7 +81,8 @@ export interface GraphNode {
   data: UmlNodeData;
 }
 
-export type HandleId = "in" | "out" | "out-l" | "in-r" | string;
+/** Handles of a box: header ("in", "out", and "out-l" / "in-r" for mutual references) or attribute row ("a:<name>") */
+export type HandleId = "in" | "out" | "out-l" | "in-r" | `a:${string}`;
 
 export interface GraphEdge {
   id: string;
@@ -286,10 +287,8 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
     const i = Math.min(...g.roles.map((r) => fc.attributes.findIndex((a) => a.name === r)).filter((i) => i >= 0));
     return Number.isFinite(i) ? i : Number.MAX_SAFE_INTEGER;
   };
-  const right = take(
-    outGroups.sort((a, b) => rowIndex(a) - rowIndex(b) || byName(a, b)),
-    "right"
-  );
+  outGroups.sort((a, b) => rowIndex(a) - rowIndex(b) || byName(a, b));
+  const right = take(outGroups, "right");
   right.forEach((g) => {
     if (!nodes.has(g.neighbour)) nodes.set(g.neighbour, makeNode(model.classifiers.get(g.neighbour)!, false, neighbourDetails, measure, constraints));
     if (!isInheritance(g.kind)) {
@@ -330,7 +329,9 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
 
   // Left: what references the focus (a neighbour already on the right gives a "back" edge)
   const onRight = new Set(right.map((g) => g.neighbour));
-  const left = take(inGroups.filter((g) => !onRight.has(g.neighbour)).sort(byName), "left");
+  const leftGroups = inGroups.filter((g) => !onRight.has(g.neighbour));
+  leftGroups.sort(byName);
+  const left = take(leftGroups, "left");
   const back = inGroups.filter((g) => onRight.has(g.neighbour));
   left.forEach((g) => {
     const n = model.classifiers.get(g.neighbour)!;
@@ -346,7 +347,7 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
           id: `in:${g.kind}:${g.neighbour}.${role}`,
           kind: g.kind,
           source: g.neighbour,
-          sourceHandle: row ? row.id : "out",
+          sourceHandle: row ? `a:${role}` : "out",
           target: focus,
           targetHandle: "in",
           label: role,
