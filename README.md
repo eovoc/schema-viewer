@@ -4,7 +4,7 @@ React component that shows the definitions of a JSON Schema as interactive UML c
 loads any JSON Schema from a URL (by default
 [eof-eos-schema-soft.json](https://eovoc.github.io/eof-eos-validator/schemas/eof-eos-schema-soft.json)).
 
-- **Table of contents** of every definition, grouped by file, with a search field.
+- **Table of contents** of every definition, grouped by file (each file can be collapsed), with a search field.
 - **One diagram at a time**: the selected definition and its neighbours. Click to navigate.
 - **Referenced schemas are loaded too**: give the URL of the root schema, the files named in its `$ref` follow.
 
@@ -78,21 +78,19 @@ const [def, setDef] = useState(() => new URLSearchParams(location.search).get("d
 
 ### Change the colours
 
-Every style is scoped under the `.schema-viewer` class, and colours are CSS variables:
+Every style is scoped under the `.schema-viewer` class, and colours are CSS variables. Override them in a
+stylesheet loaded after `@eovoc/schema-viewer/style.css`:
 
 ```css
-.my-viewer {
+.schema-viewer {
   --uml-accent: #4f6ef7;        /* selection and highlight */
   --uml-header-class: #e3edf9;  /* header of a class */
   --uml-toc-width: 240px;       /* width of the table of contents */
 }
 ```
 
-```tsx
-<SchemaViewer className="my-viewer" src="…" />
-```
-
-The others are at the top of `src/styles.css`.
+To change only one viewer, give it a class (`<SchemaViewer className="…" />`) and use that class instead.
+The other variables are at the top of `src/styles.css`.
 
 ### Other exports
 
