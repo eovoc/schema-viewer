@@ -201,9 +201,9 @@ vite.config.ts            Vite configuration of the demo
 vite.lib.config.ts        Vite configuration of the component build (dist/)
 tsconfig.json             TypeScript configuration
 tsconfig.lib.json         generation of the type declarations (dist/*.d.ts)
-LICENSE                   MIT licence
+LICENSE                   Apache 2.0 licence
 ```
 
 ## Licence
 
-[MIT](LICENSE)
+Licensed under the [Apache License 2.0](LICENSE).

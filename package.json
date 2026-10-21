@@ -2,7 +2,7 @@
   "name": "@eovoc/schema-viewer",
   "version": "0.1.0",
   "description": "React component that shows the definitions of a JSON Schema as interactive UML class diagrams.",
-  "license": "Apache 2.0",
+  "license": "Apache-2.0",
   "private": true,
   "repository": {
     "type": "git",
