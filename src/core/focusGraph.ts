@@ -41,7 +41,8 @@ const FONT = 12;
 const STEREO_FONT = 10.8;
 const MIN_W = 140;
 const MAX_W = 460;
-const MAX_LITERALS = 14;
+/** Rows of a list (values of an enumeration, subclasses of an abstract class) before "… +N (show all)" */
+const MAX_LIST_ROWS = 14;
 
 export interface RowData {
   id: string;
@@ -57,13 +58,19 @@ export interface RowData {
   port?: boolean;
 }
 
+/** Item of a list shown in a box: a subclass (id: its DefId) or an enumeration value (id: the value itself) */
+export interface ListItem {
+  id: string;
+  text: string;
+}
+
 export type UmlNodeData = {
   name: string;
   stereotype?: string;
   kind: Classifier["kind"] | "more";
   rows: RowData[];
-  /** Enumeration with more values than rows: all its values, shown in a scrollable list on demand */
-  allLiterals?: string[];
+  /** Enumeration or abstract class whose list is longer than its rows: the whole list, shown scrollable on demand */
+  allItems?: ListItem[];
   isFocus: boolean;
   compact: boolean;
   italic: boolean;
@@ -145,7 +152,21 @@ export function rowText(r: RowData): string {
   return s;
 }
 
-function rowsFor(c: Classifier, full: boolean, constraints: boolean): RowData[] {
+/** A list (values of an enumeration, subclasses of an abstract class): the first items, then "… +N (show all)" */
+function listRows(items: ListItem[]): RowData[] {
+  const rows: RowData[] = items.slice(0, MAX_LIST_ROWS).map(({ text }, i) => ({ id: `l${i}`, text }));
+  // the last row opens the full list (scrollable, in the same box: see UmlNode)
+  if (items.length > MAX_LIST_ROWS) rows.push({ id: "more", text: `… +${items.length - MAX_LIST_ROWS} (show all)`, muted: true });
+  return rows;
+}
+
+/** Items listed in a box: names of the subclasses of an abstract class, values of an enumeration */
+const listOf = (c: Classifier, model: SchemaModel): ListItem[] =>
+  c.kind === "abstract"
+    ? c.members.map((id) => ({ id, text: model.classifiers.get(id)?.name ?? id }))
+    : c.literals.map((value) => ({ id: value, text: value }));
+
+function rowsFor(c: Classifier, list: ListItem[], full: boolean, constraints: boolean): RowData[] {
   if (!full) {
     if (c.kind === "abstract") return [{ id: "summary", text: plural(c.members.length, "subclass", "subclasses"), muted: true }];
     if (c.kind === "enumeration") return [{ id: "summary", text: plural(c.literals.length, "value", "values"), muted: true }];
@@ -168,21 +189,16 @@ function rowsFor(c: Classifier, full: boolean, constraints: boolean): RowData[] 
       return rows;
     }
     case "abstract":
-      return [];
-    case "enumeration": {
-      const rows: RowData[] = c.literals.slice(0, MAX_LITERALS).map((l, i) => ({ id: `l${i}`, text: l }));
-      // the last row opens the full list (scrollable, in the same box: see UmlNode)
-      if (c.literals.length > MAX_LITERALS) rows.push({ id: "more", text: `… +${c.literals.length - MAX_LITERALS} (show all)`, muted: true });
-      return rows;
-    }
+    case "enumeration":
+      return listRows(list);
     default:
       return c.constraints.map((t, i) => ({ id: `c${i}`, text: t, muted: i > 0 }));
   }
 }
 
-function makeNode(c: Classifier, isFocus: boolean, full: boolean, measure: MeasureText, constraints = true): GraphNode {
+function makeNode(c: Classifier, list: ListItem[], isFocus: boolean, full: boolean, measure: MeasureText, constraints = true): GraphNode {
   const stereotype = STEREOTYPES[c.kind];
-  const rows = rowsFor(c, isFocus || full, constraints);
+  const rows = rowsFor(c, list, isFocus || full, constraints);
   const width = Math.round(
     Math.min(
       MAX_W,
@@ -213,7 +229,7 @@ function makeNode(c: Classifier, isFocus: boolean, full: boolean, measure: Measu
       navigable: !isFocus,
       file: c.file,
       comment: c.comment,
-      allLiterals: c.kind === "enumeration" && (isFocus || full) && c.literals.length > MAX_LITERALS ? c.literals : undefined,
+      allItems: (c.kind === "enumeration" || c.kind === "abstract") && (isFocus || full) && list.length > MAX_LIST_ROWS ? list : undefined,
     },
   };
 }
@@ -262,7 +278,8 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
 
   const nodes = new Map<string, GraphNode>();
   const edges: GraphEdge[] = [];
-  nodes.set(focus, makeNode(fc, true, true, measure, constraints));
+  const node = (c: Classifier, isFocus: boolean, full: boolean) => makeNode(c, listOf(c, model), isFocus, full, measure, constraints);
+  nodes.set(focus, node(fc, true, true));
 
   const drawable = (id: DefId) => id !== focus && isDrawable(model.classifiers.get(id));
   const outRels = model.relations.filter((r) => referrerOf(r) === focus && drawable(referencedOf(r)));
@@ -299,7 +316,7 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
   outGroups.sort((a, b) => rowIndex(a) - rowIndex(b) || byName(a, b));
   const right = take(outGroups, "right");
   right.forEach((g) => {
-    if (!nodes.has(g.neighbour)) nodes.set(g.neighbour, makeNode(model.classifiers.get(g.neighbour)!, false, neighbourDetails, measure, constraints));
+    if (!nodes.has(g.neighbour)) nodes.set(g.neighbour, node(model.classifiers.get(g.neighbour)!, false, neighbourDetails));
     if (!isInheritance(g.kind)) {
       g.roles.forEach((role) => {
         const attr = fc.attributes.find((a) => a.name === role);
@@ -347,7 +364,7 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
   const back = inGroups.filter((g) => onRight.has(g.neighbour));
   left.forEach((g) => {
     const n = model.classifiers.get(g.neighbour)!;
-    if (!nodes.has(g.neighbour)) nodes.set(g.neighbour, makeNode(n, false, neighbourDetails, measure, constraints));
+    if (!nodes.has(g.neighbour)) nodes.set(g.neighbour, node(n, false, neighbourDetails));
     const label = g.roles.length ? g.roles.join(", ") : undefined;
     if (!isInheritance(g.kind) && neighbourDetails) {
       const node = nodes.get(g.neighbour)!;

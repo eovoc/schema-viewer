@@ -2,7 +2,7 @@
 // Style taken from uml-react: header colour per kind, types in blue, multiplicities and constraints in grey.
 import { memo, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import type { RowData, UmlNodeData } from "../core/focusGraph";
+import type { ListItem, RowData, UmlNodeData } from "../core/focusGraph";
 import { headerHeight, ROW_H } from "../core/focusGraph";
 
 export type UmlFlowNodeData = UmlNodeData & {
@@ -65,10 +65,10 @@ function Row({ row, onNavigate, onHover }: Readonly<RowProps>) {
 }
 
 /**
- * Values of a large enumeration: the first ones and "… +N (show all)"; a click shows every value in a
- * scrollable list of the same height (the box keeps its size, so the layout does not change).
+ * Long list (values of an enumeration, subclasses of an abstract class): the first items and "… +N (show all)";
+ * a click shows every item in a scrollable list of the same height (the box keeps its size, so the layout does not change).
  */
-function Literals({ rows, all }: Readonly<{ rows: RowData[]; all: string[] }>) {
+function Literals({ rows, all, unit }: Readonly<{ rows: RowData[]; all: ListItem[]; unit: string }>) {
   const [expanded, setExpanded] = useState(false);
   const shown = rows.slice(0, -1); // without the "… +N" row
   const toggle = (
@@ -76,7 +76,7 @@ function Literals({ rows, all }: Readonly<{ rows: RowData[]; all: string[] }>) {
       e.stopPropagation();
       setExpanded((x) => !x);
     }}>
-      {expanded ? `Show less (${all.length} values)` : rows[rows.length - 1].text}
+      {expanded ? `Show less (${all.length} ${unit})` : rows.at(-1)?.text}
     </button>
   );
   if (!expanded) {
@@ -93,8 +93,8 @@ function Literals({ rows, all }: Readonly<{ rows: RowData[]; all: string[] }>) {
     <>
       {/* nowheel / nopan: the wheel and the drag scroll the list instead of zooming / moving the diagram */}
       <div className="uml-literals nowheel nopan nodrag" style={{ height: shown.length * ROW_H }}>
-        {all.map((l, i) => (
-          <div key={i} className="uml-row" title={l}>{l}</div>
+        {all.map((item) => (
+          <div key={item.id} className="uml-row" title={item.text}>{item.text}</div>
         ))}
       </div>
       {toggle}
@@ -145,8 +145,8 @@ function UmlNode({ id, data }: Readonly<NodeProps<UmlFlowNode>>) {
       </div>
       {data.kind !== "more" && (
         <div className={`uml-body${data.rows.length ? "" : " uml-body--empty"}`}>
-          {data.allLiterals ? (
-            <Literals rows={data.rows} all={data.allLiterals} />
+          {data.allItems ? (
+            <Literals rows={data.rows} all={data.allItems} unit={data.kind === "abstract" ? "subclasses" : "values"} />
           ) : (
             data.rows.map((r) => <Row key={r.id} row={r} onNavigate={data.onNavigate} onHover={(rowId) => data.onHoverRow(id, rowId)} />)
           )}

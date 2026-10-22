@@ -125,11 +125,11 @@ Each edge shows the name of the attribute and its multiplicity, next to the clas
 
 - Click a class or an underlined type (class, enumeration, codelist, data type) to open its diagram; hover an attribute to highlight its link.
 - **Constraints** shows or hides the constraints in braces (`{unique}`, `{closed}`, `{format=…}`…);
-  **Neighbour details** also shows the attributes of the neighbouring classes (the values of the enumerations);
+  **Neighbour details** also shows the attributes of the neighbouring classes (the values of the enumerations, the subclasses of the abstract classes);
   **Enumerations** shows, on the right of a class, the enumerations it uses («use» dependency); **JSON** shows the schema of the
   definition; **⚠** lists the warnings (documents not loaded, malformed or unresolved `$ref`).
 - More than 30 neighbours on one side are grouped in a "+N more" box.
-- Large enumerations show their first 14 values; "… +N (show all)" opens the full list, scrollable inside the box.
+- Large enumerations and abstract classes show their first 14 values or subclasses; "… +N (show all)" opens the full list, scrollable inside the box.
 
 Layout by [ELK](https://github.com/kieler/elkjs) (loaded on first use), rendering by [React Flow](https://reactflow.dev).
 
