@@ -19,7 +19,8 @@
     "./style.css": "./dist/style.css"
   },
   "files": [
-    "dist"
+    "dist",
+    "NOTICE"
   ],
   "sideEffects": [
     "**/*.css"
