@@ -1,5 +1,5 @@
 // UML diagram of one definition: top bar, React Flow canvas, JSON and warnings panels, legend.
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { Background, Controls, getViewportForBounds, ReactFlow, type EdgeTypes, type NodeTypes, type Viewport } from "@xyflow/react";
 import { buildFocusGraph, type FocusGraph } from "../core/focusGraph";
 import { fileName } from "../core/loader";
@@ -33,13 +33,16 @@ interface Props {
   neighbourDetails?: boolean;
   /** Initial state of "Constraints" ({unique}, {closed}, {format=…}…) */
   constraints?: boolean;
+  /** Initial state of "Enumerations" (enumerations used by the class, on the right) */
+  enumerations?: boolean;
 }
 
-export default function Diagram({ model, focus, onSelect, neighbourDetails = false, constraints = true }: Readonly<Props>) {
+export default function Diagram({ model, focus, onSelect, neighbourDetails = false, constraints = true, enumerations = true }: Readonly<Props>) {
   // scopes the hover CSS, so that two diagrams on one page do not interfere
   const scope = useId();
   const [details, setDetails] = useState(neighbourDetails);
   const [showConstraints, setShowConstraints] = useState(constraints);
+  const [showEnums, setShowEnums] = useState(enumerations);
   const [panel, setPanel] = useState<"none" | "json" | "diagnostics">("none");
   // last computed diagram: kept on screen while the next one is computed (no "Computing…" flash)
   const [graph, setGraph] = useState<{ key: string; model: SchemaModel; graph: FocusGraph } | null>(null);
@@ -47,21 +50,21 @@ export default function Diagram({ model, focus, onSelect, neighbourDetails = fal
   // What the pointer is on: a node, one attribute row of a node, or one edge
   const [hovered, setHovered] = useState<Hover | null>(null);
   const hoverRow = useCallback((node: string, row: string | null) => setHovered(row ? { node, row } : { node }), []);
-  const key = `${focus}|${details}|${showConstraints}`;
+  const key = `${focus}|${details}|${showConstraints}|${showEnums}`;
 
   useEffect(() => {
     let cancelled = false;
-    buildFocusGraph(model, focus, { neighbourDetails: details, constraints: showConstraints }).then(
+    buildFocusGraph(model, focus, { neighbourDetails: details, constraints: showConstraints, enumerations: showEnums }).then(
       (g) => !cancelled && setGraph({ key, model, graph: g }),
       (e) => !cancelled && setGraphError({ key, message: e instanceof Error ? e.message : String(e) })
     );
     return () => {
       cancelled = true;
     };
-  }, [model, focus, details, showConstraints, key]);
+  }, [model, focus, details, showConstraints, showEnums, key]);
 
   // never show a diagram computed for another schema
-  const current = graph && graph.model === model ? graph : null;
+  const current = graph?.model === model ? graph : null;
   const error = graphError?.key === key ? graphError.message : undefined;
   // the top bar describes the diagram on screen
   const shown = error || !current ? focus : current.graph.focus;
@@ -128,7 +131,7 @@ export default function Diagram({ model, focus, onSelect, neighbourDetails = fal
     if (!el) return;
     const observer = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
-      setSize((s) => (s && s.width === width && s.height === height ? s : { width, height }));
+      setSize((s) => (s?.width === width && s?.height === height ? s : { width, height }));
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -148,6 +151,46 @@ export default function Diagram({ model, focus, onSelect, neighbourDetails = fal
     return { viewport, padding };
   }, [current, size]);
   const fitOptions = useMemo(() => ({ ...FIT, padding: fit?.padding ?? FIT.padding }), [fit]);
+
+  // what the canvas shows: the error, the diagram, or a message while the first diagram is computed
+  let canvas: ReactNode;
+  if (error) {
+    canvas = <p className="uml-message uml-message--error">Could not compute this diagram: {error}</p>;
+  } else if (current) {
+    canvas = (
+      <ReactFlow<UmlFlowNode, UmlFlowEdge>
+        key={current.key}
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        // fitted from the first frame: React Flow uses width/height + fitView for its initial state,
+        // and defaultViewport when it sets up zoom and pan
+        width={size?.width}
+        height={size?.height}
+        defaultViewport={fit?.viewport}
+        fitView
+        fitViewOptions={fitOptions}
+        minZoom={FIT.minZoom}
+        maxZoom={MAX_USER_ZOOM}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
+        onNodeClick={(_, n) => n.data.navigable && onSelect(n.id)}
+        onNodeMouseEnter={(_, n) => setHovered({ node: n.id })}
+        onNodeMouseLeave={() => setHovered(null)}
+        onEdgeMouseEnter={(_, e) => setHovered({ edge: e.id })}
+        onEdgeMouseLeave={() => setHovered(null)}
+        proOptions={{ hideAttribution: true }}
+      >
+        <Background gap={24} size={1} color="#d9dee5" />
+        <Controls showInteractive={false} fitViewOptions={FIT} />
+      </ReactFlow>
+    );
+  } else {
+    // only shown if the first diagram takes a while (see .uml-message--delayed)
+    canvas = <p className="uml-message uml-message--delayed">Computing diagram…</p>;
+  }
 
   return (
     <div className="uml-main" data-schema-viewer={scope}>
@@ -171,6 +214,9 @@ export default function Diagram({ model, focus, onSelect, neighbourDetails = fal
           <label title="Constraints in braces: {unique}, {closed}, {format=…}…">
             <input type="checkbox" checked={showConstraints} onChange={(e) => setShowConstraints(e.target.checked)} /> Constraints
           </label>
+          <label title="Enumerations used by the class, on the right («use» dependency)">
+            <input type="checkbox" checked={showEnums} onChange={(e) => setShowEnums(e.target.checked)} /> Enumerations
+          </label>
           <button type="button" onClick={() => setPanel((p) => (p === "json" ? "none" : "json"))} aria-pressed={panel === "json"}>
             JSON
           </button>
@@ -190,41 +236,7 @@ export default function Diagram({ model, focus, onSelect, neighbourDetails = fal
       <div className="uml-canvas" data-testid="uml-canvas" ref={canvasRef}>
         <UmlMarkers />
         {hoverCss && <style>{hoverCss}</style>}
-        {error ? (
-          <p className="uml-message uml-message--error">Could not compute this diagram: {error}</p>
-        ) : current ? (
-          <ReactFlow<UmlFlowNode, UmlFlowEdge>
-            key={current.key}
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            // fitted from the first frame: React Flow uses width/height + fitView for its initial state,
-            // and defaultViewport when it sets up zoom and pan
-            width={size?.width}
-            height={size?.height}
-            defaultViewport={fit?.viewport}
-            fitView
-            fitViewOptions={fitOptions}
-            minZoom={FIT.minZoom}
-            maxZoom={MAX_USER_ZOOM}
-            nodesDraggable={false}
-            nodesConnectable={false}
-            elementsSelectable={false}
-            onNodeClick={(_, n) => n.data.navigable && onSelect(n.id)}
-            onNodeMouseEnter={(_, n) => setHovered({ node: n.id })}
-            onNodeMouseLeave={() => setHovered(null)}
-            onEdgeMouseEnter={(_, e) => setHovered({ edge: e.id })}
-            onEdgeMouseLeave={() => setHovered(null)}
-            proOptions={{ hideAttribution: true }}
-          >
-            <Background gap={24} size={1} color="#d9dee5" />
-            <Controls showInteractive={false} fitViewOptions={FIT} />
-          </ReactFlow>
-        ) : (
-          // only shown if the first diagram takes a while (see .uml-message--delayed)
-          <p className="uml-message uml-message--delayed">Computing diagram…</p>
-        )}
+        {canvas}
         {panel === "json" && <pre className="uml-panel">{JSON.stringify(c.schema, null, 2)}</pre>}
         {panel === "diagnostics" && (
           <div className="uml-panel">
@@ -262,7 +274,10 @@ function highlightedEdges(g: FocusGraph, h: Hover): FocusGraph["edges"] {
   return g.edges.filter((e) => e.source === h.node || e.target === h.node);
 }
 
-const attr = (value: string) => `"${value.replace(/["\\]/g, "\\$&")}"`;
+/** Replacement string: the matched character preceded by a backslash */
+const ESCAPED_MATCH = String.raw`\$&`;
+/** Quoted CSS attribute value: `"` and `\` escaped */
+const attr = (value: string) => `"${value.replace(/["\\]/g, ESCAPED_MATCH)}"`;
 
 /** `scope`: value of the viewer's `data-schema-viewer` attribute, so that several viewers on one page do not interfere */
 function highlightCss(edges: FocusGraph["edges"], scope: string): string {
@@ -295,7 +310,7 @@ const LEGEND: { kind: RelationKind; label: string; title: string }[] = [
   { kind: "composition", label: "composition", title: 'Nested object property ("Parent.property" class)' },
   { kind: "generalization", label: "generalization", title: "oneOf/anyOf of classes (abstract class) or allOf with $ref" },
   { kind: "realization", label: "realization", title: "No JSON Schema rule produces it yet" },
-  { kind: "dependency", label: "dependency «use»", title: "Use of a codelist or data type (shown in its own view)" },
+  { kind: "dependency", label: "dependency «use»", title: "Use of an enumeration (\"Enumerations\" box), codelist or data type (shown in its own view)" },
 ];
 
 function LegendLine({ kind }: Readonly<{ kind: RelationKind }>) {

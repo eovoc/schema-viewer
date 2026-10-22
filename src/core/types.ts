@@ -57,7 +57,7 @@ export interface Attribute {
   value?: string;
   /** Constraints shown in braces: unique, format=date, pattern=… */
   constraints: string[];
-  /** Definition to open when the type is clicked (when the type names exactly one class) */
+  /** Definition to open when the type is clicked: the only class it names, else the only definition (enumeration, codelist, data type) */
   target?: DefId;
   /** All classes referenced by the attribute */
   refs: DefId[];

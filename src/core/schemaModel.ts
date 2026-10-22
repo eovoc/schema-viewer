@@ -13,24 +13,61 @@ type RawKind = ClassifierKind | "union";
 
 const isObjectSchema = (s: JsonSchema) => !!s && typeof s === "object" && typeof s.$ref !== "string" && (!!s.properties || s.type === "object");
 const isInlineObject = (s: JsonSchema) => !!s && typeof s === "object" && typeof s.$ref !== "string" && !!s.properties;
+/** Enum written in the property itself (no $ref), whatever its number of values */
+const isInlineEnum = (s: JsonSchema) => !!s && typeof s === "object" && typeof s.$ref !== "string" && Array.isArray(s.enum) && s.enum.length > 0;
+const literalsOf = (s: JsonSchema): string[] => (s.enum ?? []).map((v: unknown) => (typeof v === "string" ? v : JSON.stringify(v)));
+
+const isRef = (s: JsonSchema) => typeof s?.$ref === "string";
+/** Array schema: its item (first one for a tuple) */
+const itemOf = (s: JsonSchema): JsonSchema | undefined => (Array.isArray(s.items) ? s.items[0] : s.items);
+/** Object with properties, `type: object`, or a map (additionalProperties schema) */
+const isClassLike = (s: JsonSchema) =>
+  !!s.properties || s.type === "object" || (!!s.additionalProperties && typeof s.additionalProperties === "object");
+/** `{ type: object, additionalProperties: {…} }` without properties: Map<string, …> */
+const isMapSchema = (s: JsonSchema) =>
+  s.type === "object" && !!s.additionalProperties && typeof s.additionalProperties === "object" && !s.properties;
+/** Only `key` and annotations */
+const onlyKey = (s: JsonSchema, key: string) => Object.keys(s).every((k) => k === key || ANNOTATIONS.has(k));
+
+/** Kind of a schema made of oneOf / anyOf alternatives */
+function alternativesKind(alts: JsonSchema[]): RawKind {
+  if (alts.every(isRef)) return "union";
+  // mix of $refs and inline objects: abstract class, inline objects become synthetic subclasses
+  if (alts.some(isRef) && alts.every((a) => isRef(a) || isObjectSchema(a))) return "union";
+  if (alts.every((a) => a && (a.properties || a.type === "object"))) return "class"; // choice between inline objects
+  return "datatype";
+}
 
 function rawKind(s: JsonSchema): RawKind {
   if (s.enum) return "enumeration";
   if (Array.isArray(s.allOf)) return "class"; // inheritance through allOf + merged attributes
   const alts = alternativesOf(s);
   // { type: "object", oneOf: [$ref…] } (e.g. GeoJSON Geometry) is a union, not an empty class
-  if (alts && !s.properties && alts.every((a) => typeof a?.$ref === "string")) return "union";
-  if (s.properties || s.type === "object" || (s.additionalProperties && typeof s.additionalProperties === "object")) return "class";
-  if (alts) {
-    if (alts.every((a) => typeof a?.$ref === "string")) return "union";
-    // mix of $refs and inline objects: abstract class, inline objects become synthetic subclasses
-    if (alts.some((a) => typeof a?.$ref === "string") && alts.every((a) => typeof a?.$ref === "string" || isObjectSchema(a))) return "union";
-    if (alts.every((a) => a && (a.properties || a.type === "object"))) return "class"; // choice between inline objects
-    return "datatype";
-  }
-  if (typeof s.$ref === "string" && Object.keys(s).every((k) => k === "$ref" || ANNOTATIONS.has(k))) return "alias";
-  if (s.type === "string" && Object.keys(s).every((k) => k === "type" || ANNOTATIONS.has(k))) return "codelist";
+  if (alts && !s.properties && alts.every(isRef)) return "union";
+  if (isClassLike(s)) return "class";
+  if (alts) return alternativesKind(alts);
+  if (isRef(s) && onlyKey(s, "$ref")) return "alias";
+  if (s.type === "string" && onlyKey(s, "type")) return "codelist";
   return "datatype";
+}
+
+/** Type label of an enum: its values when there are 3 or fewer, else enum(N) */
+const enumLabel = (values: unknown[]) => (values.length <= 3 ? values.map((v) => JSON.stringify(v)).join(" | ") : `enum(${values.length})`);
+
+/** Type label of a schema without $ref, enum, array or composition */
+function simpleTypeLabel(s: JsonSchema): string {
+  if (s.type === "object" && s.properties) return "object {…}";
+  if (Array.isArray(s.type)) return s.type.join(" | ");
+  return s.type ?? "any";
+}
+
+/** Constraints of an object: number of properties, closed */
+function objectConstraints(s: JsonSchema): string[] {
+  const c: string[] = [];
+  if (s.minProperties !== undefined) c.push(`minProperties=${s.minProperties}`);
+  if (s.maxProperties !== undefined) c.push(`maxProperties=${s.maxProperties}`);
+  if (s.additionalProperties === false) c.push("closed");
+  return c;
 }
 
 export function multiplicity(s: JsonSchema, required: boolean): string | undefined {
@@ -101,7 +138,7 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
       comment: schema.description ?? (schema.$comment !== name ? schema.$comment : undefined) ?? schema.title,
       attributes: [],
       members: [],
-      literals: (schema.enum ?? []).map((v: unknown) => (typeof v === "string" ? v : JSON.stringify(v))),
+      literals: literalsOf(schema),
       constraints: [],
       schema,
     });
@@ -169,33 +206,42 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
   const relations: Relation[] = [];
   const usages: Relation[] = [];
 
+  /** Name of the definition a $ref designates (aliases followed), or the $ref itself when unresolved */
+  const refLabel = (ref: string, file: string): string => {
+    const r = resolve(ref, file);
+    const target = follow(r.id);
+    return target ? classifiers.get(target)!.name : r.label;
+  };
+
   const typeLabel = (s: JsonSchema, file: string): string => {
     if (!s || typeof s !== "object" || Object.keys(s).length === 0) return "any";
-    if (typeof s.$ref === "string") {
-      const r = resolve(s.$ref, file);
-      const target = follow(r.id);
-      return target ? classifiers.get(target)!.name : r.label;
-    }
+    if (isRef(s)) return refLabel(s.$ref, file);
     if ("const" in s) return JSON.stringify(s.const);
-    if (s.enum) return s.enum.length <= 3 ? s.enum.map((v: unknown) => JSON.stringify(v)).join(" | ") : `enum(${s.enum.length})`;
-    if (isArraySchema(s)) return s.items ? typeLabel(Array.isArray(s.items) ? s.items[0] : s.items, file) : "any";
+    if (s.enum) return enumLabel(s.enum);
+    if (isArraySchema(s)) {
+      const item = itemOf(s);
+      return item ? typeLabel(item, file) : "any";
+    }
+    return compositeLabel(s, file) ?? simpleTypeLabel(s);
+  };
+
+  /** Type label of oneOf / anyOf ("A | B"), allOf ("A & B") or a map ("Map<string, A>"); undefined otherwise */
+  const compositeLabel = (s: JsonSchema, file: string): string | undefined => {
     const alts = alternativesOf(s);
     if (alts) return alts.map((a) => typeLabel(a, file)).join(" | ");
     if (s.allOf) return s.allOf.map((a: JsonSchema) => typeLabel(a, file)).join(" & ");
-    if (s.type === "object" && s.additionalProperties && typeof s.additionalProperties === "object" && !s.properties) {
-      return `Map<string, ${typeLabel(s.additionalProperties, file)}>`;
-    }
-    if (s.type === "object" && s.properties) return "object {…}";
-    if (Array.isArray(s.type)) return s.type.join(" | ");
-    return s.type ?? "any";
+    if (isMapSchema(s)) return `Map<string, ${typeLabel(s.additionalProperties, file)}>`;
+    return undefined;
   };
 
-  const drawableRefs = (s: JsonSchema, file: string): DefId[] => {
+  /** Definitions (of any kind) referenced by a schema, aliases followed */
+  const definitionRefs = (s: JsonSchema, file: string): DefId[] => {
     const ids = collectRefs(s)
       .map((r) => follow(resolve(r, file).id))
-      .filter((id): id is DefId => !!id && isDrawable(classifiers.get(id)));
+      .filter((id): id is DefId => !!id && classifiers.has(id));
     return Array.from(new Set(ids));
   };
+  const drawableRefs = (s: JsonSchema, file: string): DefId[] => definitionRefs(s, file).filter((id) => isDrawable(classifiers.get(id)));
 
   // Nested object -> synthetic class "Parent.property", linked by a composition
   const syntheticFor = (parent: Classifier, prop: string, schema: JsonSchema): DefId => {
@@ -242,10 +288,32 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
     return id;
   };
 
+  // Enum written in a property -> synthetic enumeration "Parent.property", used by the class («use»)
+  const syntheticEnum = (parent: Classifier, prop: string, schema: JsonSchema): DefId => {
+    const id = `${parent.id}/properties/${escapePointer(prop)}`;
+    if (!classifiers.has(id)) {
+      classifiers.set(id, {
+        id,
+        name: `${parent.name}.${prop}`,
+        file: parent.file,
+        group: parent.group,
+        kind: "enumeration",
+        synthetic: true,
+        comment: schema.description,
+        attributes: [],
+        members: [],
+        literals: literalsOf(schema),
+        constraints: [],
+        schema,
+      });
+    }
+    return id;
+  };
+
   const toAttribute = (owner: Classifier, name: string, s: JsonSchema, required: boolean): Attribute => {
     const file = owner.file;
     const array = isArraySchema(s);
-    const item: JsonSchema = array ? (Array.isArray(s.items) ? s.items[0] : s.items) ?? {} : s;
+    const item: JsonSchema = array ? itemOf(s) ?? {} : s;
     if (isInlineObject(item)) {
       const id = syntheticFor(owner, name, item);
       return {
@@ -259,7 +327,22 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
         relation: "composition",
       };
     }
+    if (isInlineEnum(item)) {
+      // the type keeps its short label ("bar" | "m", enum(4)); a click opens the enumeration
+      return {
+        name,
+        type: typeLabel(s, file),
+        multiplicity: multiplicity(s, required),
+        required,
+        constraints: constraintsOf(s, item),
+        target: syntheticEnum(owner, name, item),
+        refs: [],
+        relation: array ? "aggregation" : "association",
+      };
+    }
     const refs = drawableRefs(s, file);
+    // the type is clickable when it names one definition: a class, or else an enumeration, codelist, data type
+    const used = refs.length ? refs : definitionRefs(s, file);
     const isConst = item && typeof item === "object" && "const" in item;
     return {
       name,
@@ -268,73 +351,98 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
       multiplicity: multiplicity(s, required),
       required,
       constraints: constraintsOf(s, item ?? {}),
-      target: refs.length === 1 ? refs[0] : undefined,
+      target: used.length === 1 ? used[0] : undefined,
       refs,
       relation: array ? "aggregation" : "association",
     };
   };
 
-  classifiers.forEach((c) => {
+  /** Attributes: the properties (of the class, of its inline allOf parts or of its alternatives), then "[key]" for a map */
+  const addAttributes = (c: Classifier, propertySets: JsonSchema[], required: Set<string>, choice: boolean) => {
+    propertySets.forEach((props) =>
+      Object.entries<JsonSchema>(props).forEach(([propName, ps]) => {
+        if (!c.attributes.some((a) => a.name === propName)) c.attributes.push(toAttribute(c, propName, ps, !choice && required.has(propName)));
+      })
+    );
+    const extra = c.schema.additionalProperties;
+    if (extra && typeof extra === "object") c.attributes.push({ ...toAttribute(c, "[key]", extra, false), multiplicity: "0..*" });
+  };
+
+  /** Generalization to the allOf $refs (inherited attributes stay in the parent class), links of the attributes */
+  const addClassRelations = (c: Classifier, allOf: JsonSchema[]) => {
+    allOf.filter(isRef).forEach((a) => {
+      const parent = follow(resolve(a.$ref, c.file).id);
+      if (parent && isDrawable(classifiers.get(parent))) relations.push({ kind: "generalization", source: c.id, target: parent });
+    });
+    c.attributes.forEach((a) =>
+      a.refs.forEach((target) => relations.push({ kind: a.relation, source: c.id, target, role: a.name, multiplicity: a.multiplicity ?? "1" }))
+    );
+  };
+
+  /** «use» dependencies: codelists, enumerations and data types used by the properties, and enums written in a property */
+  const addUsages = (c: Classifier, propertySets: JsonSchema[]) => {
+    Object.entries<JsonSchema>(Object.assign({}, ...propertySets)).forEach(([propName, ps]) => {
+      if (isInlineObject(isArraySchema(ps) ? ps.items ?? {} : ps)) return; // its $refs belong to the synthetic class
+      const used = new Set(collectRefs(ps).map((r) => follow(resolve(r, c.file).id)));
+      used.forEach((target) => {
+        if (target && !isDrawable(classifiers.get(target))) usages.push({ kind: "dependency", source: c.id, target, role: propName });
+      });
+    });
+    c.attributes.forEach((a) => {
+      const t = a.target ? classifiers.get(a.target) : undefined;
+      if (t?.synthetic && t.kind === "enumeration") usages.push({ kind: "dependency", source: c.id, target: t.id, role: a.name });
+    });
+  };
+
+  const buildClass = (c: Classifier) => {
     const s = c.schema;
+    const alts = alternativesOf(s);
+    const allOf: JsonSchema[] = Array.isArray(s.allOf) ? s.allOf : [];
+    const inlineParts = allOf.filter((a) => !isRef(a));
+    const required = new Set<string>([...(s.required ?? []), ...inlineParts.flatMap((a) => a.required ?? [])]);
+    const propertySets: JsonSchema[] = alts
+      ? alts.map((a) => a.properties ?? {})
+      : [s.properties ?? {}, ...inlineParts.map((a) => a.properties ?? {})];
+    if (alts) c.constraints.push(s.oneOf ? "oneOf" : "anyOf");
+    addAttributes(c, propertySets, required, !!alts);
+    c.constraints.push(...objectConstraints(s));
+    addClassRelations(c, allOf);
+    addUsages(c, propertySets);
+  };
+
+  /** Abstract class: its members (inline objects become synthetic subclasses), each one generalized to it */
+  const buildAbstract = (c: Classifier) => {
+    const key = c.schema.oneOf ? "oneOf" : "anyOf";
+    const members = alternativesOf(c.schema)!.map((a, i) =>
+      isRef(a) ? follow(resolve(a.$ref, c.file).id) : syntheticAlternative(c, key, i, a)
+    );
+    c.members = Array.from(new Set(members.filter((id): id is DefId => !!id)));
+    c.members.forEach((m) => relations.push({ kind: "generalization", source: m, target: c.id }));
+  };
+
+  /** Data type: its type (and multiplicity for an array), then its constraints */
+  const buildDatatype = (c: Classifier) => {
+    const s = c.schema;
+    const many = isArraySchema(s) ? multiplicity(s, true) : undefined;
+    c.constraints.push(typeLabel(s, c.file) + (many ? ` [${many}]` : ""), ...constraintsOf(s, s).filter((x) => !x.startsWith("unique")));
+  };
+
+  classifiers.forEach((c) => {
     switch (c.kind) {
-      case "class": {
-        const alts = alternativesOf(s);
-        const allOf: JsonSchema[] = Array.isArray(s.allOf) ? s.allOf : [];
-        const inlineParts = allOf.filter((a) => typeof a?.$ref !== "string");
-        const required = new Set<string>([...(s.required ?? []), ...inlineParts.flatMap((a) => a.required ?? [])]);
-        const propertySets: JsonSchema[] = alts
-          ? alts.map((a) => a.properties ?? {})
-          : [s.properties ?? {}, ...inlineParts.map((a) => a.properties ?? {})];
-        if (alts) c.constraints.push(s.oneOf ? "oneOf" : "anyOf");
-        propertySets.forEach((props) =>
-          Object.entries<JsonSchema>(props).forEach(([propName, ps]) => {
-            if (!c.attributes.some((a) => a.name === propName)) c.attributes.push(toAttribute(c, propName, ps, !alts && required.has(propName)));
-          })
-        );
-        if (s.additionalProperties && typeof s.additionalProperties === "object") {
-          c.attributes.push({ ...toAttribute(c, "[key]", s.additionalProperties, false), multiplicity: "0..*" });
-        }
-        if (s.minProperties !== undefined) c.constraints.push(`minProperties=${s.minProperties}`);
-        if (s.maxProperties !== undefined) c.constraints.push(`maxProperties=${s.maxProperties}`);
-        if (s.additionalProperties === false) c.constraints.push("closed");
-        // allOf + $ref: superclass (inherited attributes stay in the parent class)
-        allOf
-          .filter((a) => typeof a?.$ref === "string")
-          .forEach((a) => {
-            const parent = follow(resolve(a.$ref, c.file).id);
-            if (parent && isDrawable(classifiers.get(parent))) relations.push({ kind: "generalization", source: c.id, target: parent });
-          });
-        c.attributes.forEach((a) =>
-          a.refs.forEach((target) => relations.push({ kind: a.relation, source: c.id, target, role: a.name, multiplicity: a.multiplicity ?? "1" }))
-        );
-        Object.entries<JsonSchema>(Object.assign({}, ...propertySets)).forEach(([propName, ps]) => {
-          if (isInlineObject(isArraySchema(ps) ? ps.items ?? {} : ps)) return; // its $refs belong to the synthetic class
-          const used = new Set(collectRefs(ps).map((r) => follow(resolve(r, c.file).id)));
-          used.forEach((target) => {
-            if (target && !isDrawable(classifiers.get(target))) usages.push({ kind: "dependency", source: c.id, target, role: propName });
-          });
-        });
+      case "class":
+        buildClass(c);
         break;
-      }
-      case "abstract": {
-        const key = s.oneOf ? "oneOf" : "anyOf";
-        const members = alternativesOf(s)!.map((a, i) =>
-          typeof a?.$ref === "string" ? follow(resolve(a.$ref, c.file).id) : syntheticAlternative(c, key, i, a)
-        );
-        c.members = Array.from(new Set(members.filter((id): id is DefId => !!id)));
-        c.members.forEach((m) => relations.push({ kind: "generalization", source: m, target: c.id }));
-        break;
-      }
-      case "enumeration":
+      case "abstract":
+        buildAbstract(c);
         break;
       case "codelist":
         c.constraints.push("string");
         break;
-      case "datatype": {
-        c.constraints.push(typeLabel(s, c.file) + (isArraySchema(s) && multiplicity(s, true) ? ` [${multiplicity(s, true)}]` : ""));
-        c.constraints.push(...constraintsOf(s, s).filter((x) => !x.startsWith("unique")));
+      case "datatype":
+        buildDatatype(c);
         break;
-      }
+      default: // enumeration: its values are already known; alias: short-circuited
+        break;
     }
   });
 

@@ -114,6 +114,8 @@ export interface FocusGraphOptions {
   neighbourDetails?: boolean;
   /** Show the constraints in braces ({unique}, {closed}, {format=…}…). Default true */
   constraints?: boolean;
+  /** Class or abstract class at the centre: also show, on the right, the enumerations it uses («use» dependency). Default false */
+  enumerations?: boolean;
   maxPerSide?: number;
   measure?: MeasureText;
 }
@@ -146,6 +148,7 @@ export function rowText(r: RowData): string {
 function rowsFor(c: Classifier, full: boolean, constraints: boolean): RowData[] {
   if (!full) {
     if (c.kind === "abstract") return [{ id: "summary", text: plural(c.members.length, "subclass", "subclasses"), muted: true }];
+    if (c.kind === "enumeration") return [{ id: "summary", text: plural(c.literals.length, "value", "values"), muted: true }];
     return [{ id: "summary", text: plural(c.attributes.length, "attribute", "attributes"), muted: true }];
   }
   switch (c.kind) {
@@ -210,7 +213,7 @@ function makeNode(c: Classifier, isFocus: boolean, full: boolean, measure: Measu
       navigable: !isFocus,
       file: c.file,
       comment: c.comment,
-      allLiterals: c.kind === "enumeration" && c.literals.length > MAX_LITERALS ? c.literals : undefined,
+      allLiterals: c.kind === "enumeration" && (isFocus || full) && c.literals.length > MAX_LITERALS ? c.literals : undefined,
     },
   };
 }
@@ -253,7 +256,7 @@ let elk: Promise<ElkEngine> | undefined;
 const getElk = () => (elk ??= import("elkjs/lib/elk.bundled.js").then((m) => new m.default()));
 
 export async function buildFocusGraph(model: SchemaModel, focus: DefId, options: FocusGraphOptions = {}): Promise<FocusGraph> {
-  const { neighbourDetails = false, constraints = true, maxPerSide = 30, measure = measureText } = options;
+  const { neighbourDetails = false, constraints = true, enumerations = false, maxPerSide = 30, measure = measureText } = options;
   const fc = model.classifiers.get(focus);
   if (!fc) throw new Error(`Unknown definition: ${focus}`);
 
@@ -263,6 +266,12 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
 
   const drawable = (id: DefId) => id !== focus && isDrawable(model.classifiers.get(id));
   const outRels = model.relations.filter((r) => referrerOf(r) === focus && drawable(referencedOf(r)));
+  if (enumerations && isDrawable(fc)) {
+    // enumerations used by the focus: «use» dependencies, on the right with the classes (attribute order)
+    outRels.push(
+      ...model.usages.filter((r) => r.source === focus && r.target !== focus && model.classifiers.get(r.target)?.kind === "enumeration")
+    );
+  }
   const incoming = isDrawable(fc) ? model.relations : model.usages;
   const inRels = incoming.filter((r) => referencedOf(r) === focus && drawable(referrerOf(r)));
   const generalized = new Set<DefId>([
@@ -294,6 +303,9 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
     if (!isInheritance(g.kind)) {
       g.roles.forEach((role) => {
         const attr = fc.attributes.find((a) => a.name === role);
+        // a row typed by an enumeration has no port of its own (not a class): give it one for the «use» edge
+        const row = nodes.get(focus)!.data.rows.find((r) => r.id === `a:${role}`);
+        if (row) row.port = true;
         edges.push({
           id: `out:${role}->${g.neighbour}`,
           kind: g.kind,

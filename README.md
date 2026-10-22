@@ -52,6 +52,7 @@ The servers hosting the schemas must allow cross-origin requests (CORS); GitHub 
 | `showToc` | `boolean` | `true` | Show the table of contents |
 | `neighbourDetails` | `boolean` | `false` | Initial state of "Neighbour details" |
 | `showConstraints` | `boolean` | `true` | Initial state of "Constraints": `{unique}`, `{closed}`, `{format=…}`… in the boxes |
+| `showEnumerations` | `boolean` | `true` | Initial state of "Enumerations": enumerations used by a class, on its right |
 | `className`, `style` | | | Applied to the root element |
 
 Without `selected`, the viewer keeps the selection itself. The default definition is the target of the root `$ref`,
@@ -122,9 +123,10 @@ One definition at a time: the selected definition in the centre with all its att
 right (each edge starts from the attribute row), what references it on the left (including its parent class).
 Each edge shows the name of the attribute and its multiplicity, next to the class at the other end.
 
-- Click a class or an underlined type to open its diagram; hover an attribute to highlight its link.
+- Click a class or an underlined type (class, enumeration, codelist, data type) to open its diagram; hover an attribute to highlight its link.
 - **Constraints** shows or hides the constraints in braces (`{unique}`, `{closed}`, `{format=…}`…);
-  **Neighbour details** also shows the attributes of the neighbouring classes; **JSON** shows the schema of the
+  **Neighbour details** also shows the attributes of the neighbouring classes (the values of the enumerations);
+  **Enumerations** shows, on the right of a class, the enumerations it uses («use» dependency); **JSON** shows the schema of the
   definition; **⚠** lists the warnings (documents not loaded, malformed or unresolved `$ref`).
 - More than 30 neighbours on one side are grouped in a "+N more" box.
 - Large enumerations show their first 14 values; "… +N (show all)" opens the full list, scrollable inside the box.
@@ -160,10 +162,11 @@ Written for draft-07 schemas (`definitions`); `$defs` and `$anchor` are read too
 | `oneOf` / `anyOf` mixing `$ref` and inline objects | abstract class; each inline object is a subclass named `Parent.anyOf[i]` |
 | `oneOf` / `anyOf` of inline objects only | class with the merged attributes and a `{oneOf}` constraint |
 | `allOf` with `$ref` | generalization to the parent class; the inline parts of `allOf` are merged into the class |
-| use of a codelist, enumeration or data type | «use» dependency |
+| use of a codelist, enumeration or data type | «use» dependency (enumerations: also drawn in the class diagram, see "Enumerations") |
 | plain `$ref` (alias) | short-circuited: links point to the target |
 | `type: string` without constraints | «codelist» |
 | `enum` | «enumeration» |
+| `enum` written in a property (no `$ref`, any number of values) | «enumeration» named `Parent.property`, used by the class («use»); the attribute keeps its short type (`"bar" \| "m"`, `enum(4)`) |
 | other simple types | «datatype» |
 | `const` | `name = "value"` |
 | `uniqueItems`, `format`, `pattern`, bounds | `{unique}`, `{format=…}`, `{pattern=…}`, `{>=…}` |
