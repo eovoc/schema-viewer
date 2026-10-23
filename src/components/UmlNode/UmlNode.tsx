@@ -2,8 +2,8 @@
 // Style taken from uml-react: header colour per kind, types in blue, multiplicities and constraints in grey.
 import { memo, useState, type CSSProperties } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import type { ListItem, RowData, UmlNodeData } from "../core/focusGraph";
-import { BODY_PAD, EMPTY_BODY_H, HEADER_BORDER, headerHeight, nodeBorder, ROW_H } from "../core/focusGraph";
+import type { ListItem, RowData, UmlNodeData } from "../../core/focusGraph";
+import { BODY_PAD, EMPTY_BODY_H, HEADER_BORDER, headerHeight, nodeBorder, ROW_H } from "../../core/focusGraph";
 
 export type UmlFlowNodeData = UmlNodeData & {
   onNavigate: (id: string) => void;

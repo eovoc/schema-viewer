@@ -1,11 +1,11 @@
 // <SchemaViewer>: loads a JSON Schema (and every schema it references) and shows its definitions
 // as UML class diagrams: table of contents on the left, diagram of the selected definition on the right.
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { loadSchemaBundle, type FetchSchema } from "./core/loader";
-import { buildSchemaModel, findDefinition } from "./core/schemaModel";
-import type { DefId, SchemaModel } from "./core/types";
-import Diagram from "./ui/Diagram";
-import Toc from "./ui/Toc";
+import { loadSchemaBundle, type FetchSchema } from "../../core/loader";
+import { buildSchemaModel, findDefinition } from "../../core/schemaModel";
+import type { DefId, SchemaModel } from "../../core/types";
+import Diagram from "../Diagram";
+import Toc from "../Toc";
 
 export interface SchemaViewerProps {
   /** URL of the root JSON Schema. The schemas it references ($ref, relative or absolute) are loaded too. */

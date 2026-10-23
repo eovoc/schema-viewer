@@ -1,13 +1,13 @@
 // UML diagram of one definition: top bar, React Flow canvas, JSON and warnings panels, legend.
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { Background, Controls, getViewportForBounds, ReactFlow, type EdgeTypes, type NodeTypes, type Viewport } from "@xyflow/react";
-import { buildFocusGraph, type FocusGraph } from "../core/focusGraph";
-import { fileName } from "../core/loader";
-import { referencedOf, referrerOf } from "../core/schemaModel";
-import type { DefId, RelationKind, SchemaModel } from "../core/types";
-import { isDrawable } from "../core/types";
-import UmlEdge, { edgeMarkers, UmlMarkers, type UmlFlowEdge } from "./UmlEdge";
-import UmlNode, { type UmlFlowNode } from "./UmlNode";
+import { buildFocusGraph, type FocusGraph } from "../../core/focusGraph";
+import { fileName } from "../../core/loader";
+import { referencedOf, referrerOf } from "../../core/schemaModel";
+import type { DefId, RelationKind, SchemaModel } from "../../core/types";
+import { isDrawable } from "../../core/types";
+import UmlEdge, { edgeMarkers, UmlMarkers, type UmlFlowEdge } from "../UmlEdge";
+import UmlNode, { type UmlFlowNode } from "../UmlNode";
 
 const nodeTypes: NodeTypes = { uml: UmlNode };
 const FIT = { padding: 0.12, minZoom: 0.1, maxZoom: 1.1 };
