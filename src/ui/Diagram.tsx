@@ -80,7 +80,6 @@ export default function Diagram({ model, focus, onSelect, neighbourDetails = fal
     [model, shown]
   );
 
-  // Nodes depend on the graph only (never recreated on hover, see highlight.ts)
   const nodes = useMemo<UmlFlowNode[]>(
     () =>
       (current?.graph.nodes ?? []).map((n) => ({
