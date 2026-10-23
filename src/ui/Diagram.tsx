@@ -293,7 +293,7 @@ function highlightCss(edges: FocusGraph["edges"], scope: string): string {
     const markers = markerStart + markerEnd;
     rules.push(`${path} { stroke: var(--uml-accent); stroke-width: 1.8; ${markers} }`);
     if (e.sourceHandle.startsWith("a:")) {
-      rules.push(`${root} .react-flow__node[data-id=${attr(e.source)}] .uml-row[data-row=${attr(e.sourceHandle)}] { background: #fdeee6; }`);
+      rules.push(`${root} .react-flow__node[data-id=${attr(e.source)}] .uml-row[data-row=${attr(e.sourceHandle)}] { background: var(--uml-accent-soft); }`);
     }
   });
   nodes.forEach((id) => rules.push(`${root} .react-flow__node[data-id=${attr(id)}] .uml-node { border-color: var(--uml-accent); }`));
@@ -323,7 +323,7 @@ function LegendLine({ kind }: Readonly<{ kind: RelationKind }>) {
         y1="7"
         x2="37"
         y2="7"
-        stroke="#6b7a8c"
+        style={{ stroke: "var(--uml-edge)" }}
         strokeWidth="1.3"
         strokeDasharray={dashed ? "5 3" : undefined}
         markerStart={m.start ? `url(#${m.start})` : undefined}

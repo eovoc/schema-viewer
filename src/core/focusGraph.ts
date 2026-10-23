@@ -34,9 +34,12 @@ export const measureText: MeasureText = (text, font) => {
 // ---------------------------------------------------------------------------
 // Graph
 
+// Dimensions of a box, in px. ELK needs them to place the boxes and the ports of the attribute rows before anything
+// is drawn, so they are defined here only: UmlNode passes them to styles.css as CSS variables (--uml-row-h…).
 export const ROW_H = 18;
 export const BODY_PAD = 5;
 export const EMPTY_BODY_H = 10;
+export const HEADER_BORDER = 1;
 const FONT = 12;
 const STEREO_FONT = 10.8;
 const MIN_W = 140;
@@ -136,9 +139,8 @@ const STEREOTYPES: Partial<Record<UmlNodeData["kind"], string>> = {
 
 export const headerHeight = (stereotype?: string) => (stereotype ? 40 : 28);
 
-/** Node CSS borders (styles.css): counted in the size and port positions, otherwise ELK routes are offset */
+/** Border of a box: counted in its size and in the port positions, otherwise ELK routes are offset */
 export const nodeBorder = (isFocus: boolean) => (isFocus ? 2 : 1.2);
-const HEADER_BORDER = 1;
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 

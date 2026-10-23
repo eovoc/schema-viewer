@@ -33,9 +33,9 @@ export function orthogonalPath(route: Point[], source: Point, target: Point): st
   const clean: Point[] = [pts[0]];
   for (let i = 1; i < pts.length; i++) {
     const p = pts[i];
-    const prev = clean[clean.length - 1];
+    const prev = clean.at(-1)!;
     if (Math.abs(p.x - prev.x) < 0.5 && Math.abs(p.y - prev.y) < 0.5) continue;
-    const before = clean[clean.length - 2];
+    const before = clean.at(-2);
     if (before && ((Math.abs(before.x - prev.x) < 0.5 && Math.abs(prev.x - p.x) < 0.5) || (Math.abs(before.y - prev.y) < 0.5 && Math.abs(prev.y - p.y) < 0.5))) {
       clean[clean.length - 1] = p;
       continue;
@@ -52,7 +52,7 @@ export function orthogonalPath(route: Point[], source: Point, target: Point): st
     const outY = b.y + Math.sign(c.y - b.y) * r;
     d += ` L ${inX},${inY} Q ${b.x},${b.y} ${outX},${outY}`;
   }
-  const end = clean[clean.length - 1];
+  const end = clean.at(-1)!;
   return `${d} L ${end.x},${end.y}`;
 }
 
@@ -96,8 +96,11 @@ export default function UmlEdge(props: Readonly<EdgeProps<UmlFlowEdge>>) {
 // open arrow (association, dependency), hollow triangle (generalization, realization),
 // hollow diamond (aggregation), filled diamond (composition).
 
-const EDGE = "#6b7a8c";
-const ACCENT = "#e8590c";
+// Colours from the CSS variables (styles.css), so that changing --uml-edge or --uml-accent changes the markers too.
+// They are set with `style`: SVG presentation attributes (fill="…") do not accept var().
+const EDGE = "var(--uml-edge)";
+const ACCENT = "var(--uml-accent)";
+const SURFACE = "var(--uml-surface)";
 
 type Shape = "arrow" | "triangle" | "diamond" | "diamondFilled";
 
@@ -126,19 +129,19 @@ function Marker({ shape, color, highlighted }: Readonly<{ shape: Shape; color: s
     case "arrow":
       return (
         <marker id={id} viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" {...common}>
-          <path d="M1,1.5 L13,7 L1,12.5" fill="none" stroke={color} strokeWidth="1.3" />
+          <path d="M1,1.5 L13,7 L1,12.5" style={{ fill: "none", stroke: color }} strokeWidth="1.3" />
         </marker>
       );
     case "triangle":
       return (
         <marker id={id} viewBox="0 0 16 14" refX="15" refY="7" markerWidth="16" markerHeight="14" {...common}>
-          <path d="M1,1 L15,7 L1,13 Z" fill="#ffffff" stroke={color} strokeWidth="1.3" />
+          <path d="M1,1 L15,7 L1,13 Z" style={{ fill: SURFACE, stroke: color }} strokeWidth="1.3" />
         </marker>
       );
     default:
       return (
         <marker id={id} viewBox="0 0 20 12" refX="19" refY="6" markerWidth="20" markerHeight="12" {...common}>
-          <path d="M1,6 L10,1 L19,6 L10,11 Z" fill={shape === "diamondFilled" ? color : "#ffffff"} stroke={color} strokeWidth="1.3" />
+          <path d="M1,6 L10,1 L19,6 L10,11 Z" style={{ fill: shape === "diamondFilled" ? color : SURFACE, stroke: color }} strokeWidth="1.3" />
         </marker>
       );
   }

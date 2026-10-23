@@ -1,9 +1,9 @@
 // UML class (React Flow node): header (stereotype + name), attribute compartment.
 // Style taken from uml-react: header colour per kind, types in blue, multiplicities and constraints in grey.
-import { memo, useState } from "react";
+import { memo, useState, type CSSProperties } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { ListItem, RowData, UmlNodeData } from "../core/focusGraph";
-import { headerHeight, ROW_H } from "../core/focusGraph";
+import { BODY_PAD, EMPTY_BODY_H, HEADER_BORDER, headerHeight, nodeBorder, ROW_H } from "../core/focusGraph";
 
 export type UmlFlowNodeData = UmlNodeData & {
   onNavigate: (id: string) => void;
@@ -102,6 +102,16 @@ function Literals({ rows, all, unit }: Readonly<{ rows: RowData[]; all: ListItem
   );
 }
 
+/** Dimensions used by the layout (focusGraph.ts), given to styles.css: the boxes are drawn exactly as ELK placed them */
+const sizes = (isFocus: boolean) =>
+  ({
+    "--uml-border-width": `${nodeBorder(isFocus)}px`,
+    "--uml-header-border-width": `${HEADER_BORDER}px`,
+    "--uml-body-pad": `${BODY_PAD}px`,
+    "--uml-empty-body-h": `${EMPTY_BODY_H}px`,
+    "--uml-row-h": `${ROW_H}px`,
+  }) as CSSProperties;
+
 function UmlNode({ id, data }: Readonly<NodeProps<UmlFlowNode>>) {
   const classes = [
     "uml-node",
@@ -117,6 +127,7 @@ function UmlNode({ id, data }: Readonly<NodeProps<UmlFlowNode>>) {
   return (
     <div
       className={classes}
+      style={sizes(data.isFocus)}
       title={data.comment}
     >
       <Handle type="target" position={Position.Left} id="in" className="uml-handle" style={headerHandle} isConnectable={false} />
