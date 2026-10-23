@@ -1,4 +1,5 @@
-// Types shared by the loader and (in the next steps) the UML model.
+// Types of the loaded schemas (SchemaBundle) and of the UML model (SchemaModel),
+// shared by core/ and ui/, and exported by the package (index.ts).
 
 /** A JSON Schema document or sub-schema (any JSON object) */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
