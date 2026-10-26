@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { Background, Controls, getViewportForBounds, ReactFlow, type EdgeTypes, type NodeTypes, type Viewport } from "@xyflow/react";
 import { buildFocusGraph, type FocusGraph } from "../../core/focusGraph";
-import { fileName } from "../../core/loader";
+import { fileName } from "../../utils/refs";
 import { referencedOf, referrerOf } from "../../core/schemaModel";
 import type { DefId, RelationKind, SchemaModel } from "../../core/types";
 import { isDrawable } from "../../core/types";

@@ -1,7 +1,7 @@
 // Table of contents: definitions grouped by document (and container, e.g. "thesaurus"), search field,
 // current definition highlighted. Documents and containers can be collapsed.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { fileName } from "../../core/loader";
+import { fileName } from "../../utils/refs";
 import type { Classifier, DefId, SchemaModel } from "../../core/types";
 
 interface Props {

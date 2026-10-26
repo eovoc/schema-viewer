@@ -1,6 +1,7 @@
 // JSON Schema (draft-07, one or more documents) -> UML model: classes, attributes, relations.
 // The rules are listed in the README ("JSON Schema -> UML rules").
-import { collectRefs, escapePointer, fileName, getPointer, pointerName, resolveRef } from "./loader";
+import { escapePointer, getPointer, pointerName } from "../utils/jsonPointer";
+import { collectRefs, fileName, resolveRef } from "../utils/refs";
 import type { Attribute, Classifier, ClassifierKind, DefId, JsonSchema, Relation, SchemaBundle, SchemaModel } from "./types";
 import { isDrawable, isInheritance } from "./types";
 
