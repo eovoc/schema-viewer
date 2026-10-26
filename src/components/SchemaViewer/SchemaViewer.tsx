@@ -1,8 +1,9 @@
 // <SchemaViewer>: loads a JSON Schema (and every schema it references) and shows its definitions
 // as UML class diagrams: table of contents on the left, diagram of the selected definition on the right.
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { loadSchemaBundle, type FetchSchema } from "../../services/schemaLoader";
-import { buildSchemaModel, findDefinition } from "../../utils/schemaModel";
+import { useState, type CSSProperties } from "react";
+import { useSchemaModel } from "../../hooks/useSchemaModel";
+import type { FetchSchema } from "../../services/schemaLoader";
+import { findDefinition } from "../../utils/schemaModel";
 import type { DefId, SchemaModel } from "../../types/schema";
 import Diagram from "../Diagram";
 import Toc from "../Toc";
@@ -36,38 +37,12 @@ export interface SchemaViewerProps {
   style?: CSSProperties;
 }
 
-type Loaded = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; model: SchemaModel };
-
 export default function SchemaViewer(props: Readonly<SchemaViewerProps>) {
   const { src, selected, onSelect, fetchSchema, showToc = true, neighbourDetails = false, showConstraints = true, showEnumerations = true, className, style } = props;
   const controlled = "selected" in props;
 
-  // callbacks are read through a ref: a new function on each render of the parent must not reload the schema
-  const callbacks = useRef({ onLoad: props.onLoad, onError: props.onError, fetchSchema });
-  useEffect(() => {
-    callbacks.current = { onLoad: props.onLoad, onError: props.onError, fetchSchema };
-  });
-
   // load the schema and the documents it references, then build the UML model
-  const [result, setResult] = useState<{ src: string; loaded: Loaded } | null>(null);
-  useEffect(() => {
-    const controller = new AbortController();
-    loadSchemaBundle(src, { signal: controller.signal, fetchSchema: callbacks.current.fetchSchema })
-      .then((bundle) => {
-        if (controller.signal.aborted) return;
-        const model = buildSchemaModel(bundle);
-        setResult({ src, loaded: { status: "ready", model } });
-        callbacks.current.onLoad?.(model);
-      })
-      .catch((e) => {
-        if (controller.signal.aborted) return;
-        const error = e instanceof Error ? e : new Error(String(e));
-        setResult({ src, loaded: { status: "error", message: error.message } });
-        callbacks.current.onError?.(error);
-      });
-    return () => controller.abort();
-  }, [src]);
-  const loaded: Loaded = result?.src === src ? result.loaded : { status: "loading" };
+  const loaded = useSchemaModel(src, { onLoad: props.onLoad, onError: props.onError, fetchSchema });
   const model = loaded.status === "ready" ? loaded.model : undefined;
 
   // selection: from the `selected` prop when controlled, otherwise kept here
