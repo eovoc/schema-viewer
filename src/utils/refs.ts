@@ -1,6 +1,6 @@
 // URLs and $ref: file name of a URL, $ref values of a schema, document a $ref points to,
 // target of a $ref in the loaded documents (resolveRef) and the reverse (relativeRef).
-import type { JsonSchema } from "../core/types";
+import type { JsonSchema } from "../types/schema";
 import { escapePointer, getPointer, pointerName } from "./jsonPointer";
 
 /** Last part of a URL: "https://host/schemas/mdj.json" -> "mdj.json" (query, fragment and trailing slashes ignored) */

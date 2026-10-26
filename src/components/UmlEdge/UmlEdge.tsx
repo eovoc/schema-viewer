@@ -1,7 +1,7 @@
 // UML edge: orthogonal route computed by ELK (rounded corners), role and multiplicity near the relevant end.
 // Edges without an ELK route (mutual references) fall back to React Flow's "smoothstep".
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, Position, type Edge, type EdgeProps } from "@xyflow/react";
-import type { RelationKind } from "../../core/types";
+import type { RelationKind } from "../../types/schema";
 
 type Point = { x: number; y: number };
 

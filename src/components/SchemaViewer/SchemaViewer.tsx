@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { loadSchemaBundle, type FetchSchema } from "../../services/schemaLoader";
 import { buildSchemaModel, findDefinition } from "../../core/schemaModel";
-import type { DefId, SchemaModel } from "../../core/types";
+import type { DefId, SchemaModel } from "../../types/schema";
 import Diagram from "../Diagram";
 import Toc from "../Toc";
 

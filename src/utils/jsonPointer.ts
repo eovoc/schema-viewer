@@ -1,5 +1,5 @@
 // JSON Pointers ("/definitions/MD_Metadata"): escaping of the segments, last segment, value at a pointer.
-import type { JsonSchema } from "../core/types";
+import type { JsonSchema } from "../types/schema";
 
 export const escapePointer = (segment: string) => segment.replace(/~/g, "~0").replace(/\//g, "~1");
 export const unescapePointer = (segment: string) => segment.replace(/~1/g, "/").replace(/~0/g, "~");

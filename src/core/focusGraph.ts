@@ -5,9 +5,8 @@
 // Edges start from the attribute row (fixed ELK ports).
 // No React / React Flow dependency: ui/Diagram.tsx converts the result.
 import type { ELK as ElkEngine, ElkNode, ElkPort } from "elkjs/lib/elk-api";
-import { referencedOf, referrerOf } from "./schemaModel";
-import type { Classifier, DefId, Relation, RelationKind, SchemaModel } from "./types";
-import { isDrawable, isInheritance } from "./types";
+import { isDrawable, isInheritance, referencedOf, referrerOf } from "./schemaModel";
+import type { Classifier, DefId, Relation, RelationKind, SchemaModel } from "../types/schema";
 
 // ---------------------------------------------------------------------------
 // Text measurement, to size the boxes before the layout.

@@ -2,8 +2,13 @@
 // The rules are listed in the README ("JSON Schema -> UML rules").
 import { escapePointer, getPointer, pointerName } from "../utils/jsonPointer";
 import { collectRefs, fileName, resolveRef } from "../utils/refs";
-import type { Attribute, Classifier, ClassifierKind, DefId, JsonSchema, Relation, SchemaBundle, SchemaModel } from "./types";
-import { isDrawable, isInheritance } from "./types";
+import type { Attribute, Classifier, ClassifierKind, DefId, JsonSchema, Relation, RelationKind, SchemaBundle, SchemaModel } from "../types/schema";
+
+/** Generalization and realization: the edge goes from the subclass to the parent */
+export const isInheritance = (k: RelationKind) => k === "generalization" || k === "realization";
+
+/** Only classes and abstract classes are drawn as neighbours in a diagram */
+export const isDrawable = (c: Classifier | undefined): boolean => !!c && (c.kind === "class" || c.kind === "abstract");
 
 const ANNOTATIONS = new Set(["$comment", "description", "title", "$id", "examples", "default"]);
 

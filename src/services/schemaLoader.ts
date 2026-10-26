@@ -4,7 +4,7 @@
 //   "mdj.json#/definitions/X"     relative: resolved against the URL of the document containing the $ref
 //   "https://host/x.json#/…"      absolute: loaded as is
 //   "http://json-schema.org/…"    JSON Schema meta-schemas: never loaded
-import type { JsonSchema, LoadError, SchemaBundle } from "../core/types";
+import type { JsonSchema, LoadError, SchemaBundle } from "../types/schema";
 import { collectRefs, fileName, referencedDocument } from "../utils/refs";
 
 export type FetchSchema = (url: string, signal?: AbortSignal) => Promise<JsonSchema>;
