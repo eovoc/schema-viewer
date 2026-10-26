@@ -1,7 +1,7 @@
 // JSON Schema (draft-07, one or more documents) -> UML model: classes, attributes, relations.
 // The rules are listed in the README ("JSON Schema -> UML rules").
-import { escapePointer, getPointer, pointerName } from "../utils/jsonPointer";
-import { collectRefs, fileName, resolveRef } from "../utils/refs";
+import { escapePointer, getPointer, pointerName } from "./jsonPointer";
+import { collectRefs, fileName, resolveRef } from "./refs";
 import type { Attribute, Classifier, ClassifierKind, DefId, JsonSchema, Relation, RelationKind, SchemaBundle, SchemaModel } from "../types/schema";
 
 /** Generalization and realization: the edge goes from the subclass to the parent */
@@ -365,11 +365,11 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
 
   /** Attributes: the properties (of the class, of its inline allOf parts or of its alternatives), then "[key]" for a map */
   const addAttributes = (c: Classifier, propertySets: JsonSchema[], required: Set<string>, choice: boolean) => {
-    propertySets.forEach((props) =>
-      Object.entries<JsonSchema>(props).forEach(([propName, ps]) => {
+    for (const props of propertySets) {
+      for (const [propName, ps] of Object.entries<JsonSchema>(props)) {
         if (!c.attributes.some((a) => a.name === propName)) c.attributes.push(toAttribute(c, propName, ps, !choice && required.has(propName)));
-      })
-    );
+      }
+    }
     const extra = c.schema.additionalProperties;
     if (extra && typeof extra === "object") c.attributes.push({ ...toAttribute(c, "[key]", extra, false), multiplicity: "0..*" });
   };
