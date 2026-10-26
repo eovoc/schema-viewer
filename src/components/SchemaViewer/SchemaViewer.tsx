@@ -2,7 +2,7 @@
 // as UML class diagrams: table of contents on the left, diagram of the selected definition on the right.
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { loadSchemaBundle, type FetchSchema } from "../../services/schemaLoader";
-import { buildSchemaModel, findDefinition } from "../../core/schemaModel";
+import { buildSchemaModel, findDefinition } from "../../utils/schemaModel";
 import type { DefId, SchemaModel } from "../../types/schema";
 import Diagram from "../Diagram";
 import Toc from "../Toc";
