@@ -91,7 +91,7 @@ stylesheet loaded after `@eovoc/schema-viewer/style.css`:
 ```
 
 To change only one viewer, give it a class (`<SchemaViewer className="…" />`) and use that class instead.
-The other variables are at the top of `src/styles.css`.
+The other variables are in `src/styles/base.css`.
 
 ### Other exports
 
