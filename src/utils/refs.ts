@@ -3,8 +3,13 @@
 import type { JsonSchema } from "../core/types";
 import { escapePointer, getPointer, pointerName } from "./jsonPointer";
 
-/** Last part of a URL: "https://host/schemas/mdj.json" -> "mdj.json" */
-export const fileName = (url: string) => url.replace(/[?#].*$/, "").replace(/\/+$/, "").split("/").pop() || url;
+/** Last part of a URL: "https://host/schemas/mdj.json" -> "mdj.json" (query, fragment and trailing slashes ignored) */
+export function fileName(url: string): string {
+  const end = url.search(/[?#]/);
+  let path = end < 0 ? url : url.slice(0, end);
+  while (path.endsWith("/")) path = path.slice(0, -1);
+  return path.split("/").pop() || url;
+}
 
 /** Every "$ref" value found in a schema (values of enum, const, examples and default are data, not schemas) */
 export function collectRefs(schema: unknown, refs: string[] = []): string[] {
