@@ -61,7 +61,7 @@ or the first class.
 ### Keep the selection in the URL
 
 The component does not touch the address bar: each application manages its URLs its own way. To make links shareable
-and the back button work, control the selection, as the demo page does (`demo/SchemaViewerPage.tsx`):
+and the back button work, control the selection, as the demo page does (`demo/pages/SchemaViewerPage/SchemaViewerPage.tsx`):
 
 ```tsx
 const [def, setDef] = useState(() => new URLSearchParams(location.search).get("def") ?? undefined);
