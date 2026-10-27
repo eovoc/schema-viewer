@@ -43,7 +43,7 @@ export type DefId = string;
 export type ClassifierKind = "class" | "abstract" | "enumeration" | "codelist" | "datatype" | "alias";
 
 /** UML relations. Association, aggregation, composition and dependency go from the owner to the type; inheritance from the subclass to the parent */
-export type RelationKind = "association" | "aggregation" | "composition" | "generalization" | "realization" | "dependency";
+export type RelationKind = "association" | "aggregation" | "composition" | "generalization" | "dependency";
 
 export interface Attribute {
   name: string;

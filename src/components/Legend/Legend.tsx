@@ -13,7 +13,7 @@ const LEGEND: { kind: RelationKind; label: string; title: string }[] = [
 function LegendLine({ kind }: Readonly<{ kind: RelationKind }>) {
   // in the legend, inheritance is drawn from the subclass (left) to the parent (right)
   const m = edgeMarkers(kind, false);
-  const dashed = kind === "dependency" || kind === "realization";
+  const dashed = kind === "dependency";
   return (
     <svg width="40" height="14" aria-hidden="true" className="uml-legend__line">
       <line

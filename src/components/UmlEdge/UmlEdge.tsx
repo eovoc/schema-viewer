@@ -93,7 +93,7 @@ export default function UmlEdge(props: Readonly<EdgeProps<UmlFlowEdge>>) {
 
 // ---------------------------------------------------------------------------
 // UML markers (shapes taken from uml-react), normal and highlighted (hover) variants:
-// open arrow (association, dependency), hollow triangle (generalization, realization),
+// open arrow (association, dependency), hollow triangle (generalization),
 // hollow diamond (aggregation), filled diamond (composition).
 
 // Colours from the CSS variables (styles.css), so that changing --uml-edge or --uml-accent changes the markers too.
@@ -111,7 +111,6 @@ export function edgeMarkers(kind: RelationKind, parentAtSource: boolean, highlig
   const id = (shape: Shape) => markerId(shape, highlighted);
   switch (kind) {
     case "generalization":
-    case "realization":
       return parentAtSource ? { start: id("triangle") } : { end: id("triangle") };
     case "aggregation":
       return { start: id("diamond") }; // the diamond sits on the whole (the class owning the attribute)

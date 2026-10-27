@@ -16,6 +16,5 @@
 .uml-edge-label--end { text-align: right; }
 .uml-edge-role { color: var(--uml-role); }
 .uml-edge-stereotype { color: var(--uml-muted); }
-.uml-edge--dependency .react-flow__edge-path,
-.uml-edge--realization .react-flow__edge-path { stroke-dasharray: 6 4; }
+.uml-edge--dependency .react-flow__edge-path { stroke-dasharray: 6 4; }
 .uml-edge-mult { color: var(--uml-muted); }
