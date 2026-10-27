@@ -15,6 +15,10 @@ const ANNOTATIONS = new Set(["$comment", "description", "title", "$id", "example
 const isArraySchema = (s: JsonSchema) => !!s && (s.type === "array" || (s.items !== undefined && s.type === undefined));
 const alternativesOf = (s: JsonSchema): JsonSchema[] | undefined => s.oneOf ?? s.anyOf;
 
+/** A `title` up to this length names an inline alternative; longer ones read as sentences, not names */
+const MAX_TITLE_AS_NAME = 40;
+
+/** Provisional kind, before the references are resolved: a "union" becomes an abstract class or a data type */
 type RawKind = ClassifierKind | "union";
 
 const isObjectSchema = (s: JsonSchema) => !!s && typeof s === "object" && typeof s.$ref !== "string" && (!!s.properties || s.type === "object");
@@ -38,7 +42,7 @@ const onlyKey = (s: JsonSchema, key: string) => Object.keys(s).every((k) => k ==
 /** Kind of a schema made of oneOf / anyOf alternatives */
 function alternativesKind(alts: JsonSchema[]): RawKind {
   if (alts.every(isRef)) return "union";
-  // mix of $refs and inline objects: abstract class, inline objects become synthetic subclasses
+  // mix of $refs and inline objects: "union" (later an abstract class), inline objects become synthetic subclasses
   if (alts.some(isRef) && alts.every((a) => isRef(a) || isObjectSchema(a))) return "union";
   if (alts.every((a) => a && (a.properties || a.type === "object"))) return "class"; // choice between inline objects
   return "datatype";
@@ -164,8 +168,8 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
     const root = files[file];
     if (root.definitions && typeof root.definitions === "object") declareAll(file, root.definitions, "/definitions");
     if (root.$defs && typeof root.$defs === "object") declareAll(file, root.$defs, "/$defs");
-    const rk = rawKind(root);
-    if (rk === "class" || rk === "union") addClassifier(file, "", root, stem(file));
+    const rootKind = rawKind(root);
+    if (rootKind === "class" || rootKind === "union") addClassifier(file, "", root, stem(file));
   }
   for (const file of documents) {
     collectRefs(files[file]).forEach((ref) => {
@@ -278,7 +282,7 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
     if (!classifiers.has(id)) {
       classifiers.set(id, {
         id,
-        name: typeof schema.title === "string" && schema.title.length <= 40 ? schema.title : `${parent.name}.${key}[${i}]`,
+        name: typeof schema.title === "string" && schema.title.length <= MAX_TITLE_AS_NAME ? schema.title : `${parent.name}.${key}[${i}]`,
         file: parent.file,
         group: parent.group,
         kind: "class",
@@ -366,8 +370,8 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
   /** Attributes: the properties (of the class, of its inline allOf parts or of its alternatives), then "[key]" for a map */
   const addAttributes = (c: Classifier, propertySets: JsonSchema[], required: Set<string>, choice: boolean) => {
     for (const props of propertySets) {
-      for (const [propName, ps] of Object.entries<JsonSchema>(props)) {
-        if (!c.attributes.some((a) => a.name === propName)) c.attributes.push(toAttribute(c, propName, ps, !choice && required.has(propName)));
+      for (const [propName, propSchema] of Object.entries<JsonSchema>(props)) {
+        if (!c.attributes.some((a) => a.name === propName)) c.attributes.push(toAttribute(c, propName, propSchema, !choice && required.has(propName)));
       }
     }
     const extra = c.schema.additionalProperties;
@@ -387,9 +391,9 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
 
   /** «use» dependencies: codelists, enumerations and data types used by the properties, and enums written in a property */
   const addUsages = (c: Classifier, propertySets: JsonSchema[]) => {
-    Object.entries<JsonSchema>(Object.assign({}, ...propertySets)).forEach(([propName, ps]) => {
-      if (isInlineObject(isArraySchema(ps) ? ps.items ?? {} : ps)) return; // its $refs belong to the synthetic class
-      const used = new Set(collectRefs(ps).map((r) => follow(resolve(r, c.file).id)));
+    Object.entries<JsonSchema>(Object.assign({}, ...propertySets)).forEach(([propName, propSchema]) => {
+      if (isInlineObject(isArraySchema(propSchema) ? propSchema.items ?? {} : propSchema)) return; // its $refs belong to the synthetic class
+      const used = new Set(collectRefs(propSchema).map((r) => follow(resolve(r, c.file).id)));
       used.forEach((target) => {
         if (target && !isDrawable(classifiers.get(target))) usages.push({ kind: "dependency", source: c.id, target, role: propName });
       });

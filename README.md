@@ -180,7 +180,8 @@ Written for draft-07 schemas (`definitions`); `$defs` and `$anchor` are read too
 
 The folders follow the usual React layout (components, hooks, services, utils, types, styles).
 `components/` and `hooks/` use React; `services/`, `utils/` and `types/` are plain TypeScript, with no React.
-Inside `src/`, files import each other by relative path, never through `index.ts` or the package name.
+Inside `src/`, files import each other by relative path, never through `src/index.ts` or the package name
+(each component folder has its own `index.ts`, which the other files import).
 
 ```
 src/                          the component

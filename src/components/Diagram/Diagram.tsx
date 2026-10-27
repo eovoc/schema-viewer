@@ -8,7 +8,7 @@ import { buildFocusGraph } from "../../utils/focusGraph";
 import { edgeMarkers } from "../../utils/markers";
 import { fileName } from "../../utils/refs";
 import { isDrawable, referencedOf, referrerOf } from "../../utils/schemaModel";
-import type { DefId, SchemaModel } from "../../types/schema";
+import type { ClassifierKind, DefId, SchemaModel } from "../../types/schema";
 import UmlEdge, { type UmlFlowEdge } from "../UmlEdge";
 import UmlMarkers from "../UmlMarkers";
 import UmlNode, { type UmlFlowNode } from "../UmlNode";
@@ -19,7 +19,7 @@ const FIT = { padding: 0.12, minZoom: 0.1, maxZoom: 1.1 };
 const MAX_USER_ZOOM = 2;
 const edgeTypes: EdgeTypes = { uml: UmlEdge };
 
-const KIND_LABEL: Record<string, string> = {
+const KIND_LABEL: Record<ClassifierKind, string> = {
   class: "class",
   abstract: "abstract class",
   enumeration: "enumeration",
@@ -73,7 +73,7 @@ export default function Diagram({ model, focus, onSelect, neighbourDetails = fal
   const error = graphError?.key === key ? graphError.message : undefined;
   // the top bar describes the diagram on screen
   const shown = error || !current ? focus : current.graph.focus;
-  const c = model.classifiers.get(shown)!;
+  const classifier = model.classifiers.get(shown)!;
 
   const usedBy = useMemo(
     () =>
@@ -101,6 +101,8 @@ export default function Diagram({ model, focus, onSelect, neighbourDetails = fal
 
   // Highlighted edges: colours come from CSS; only their z-order changes so they are drawn above the others
   const highlighted = useMemo(() => (current && hovered ? highlightedEdges(current.graph, hovered) : []), [current, hovered]);
+  // ids of the highlighted edges as one string: the edges below are rebuilt only when this set changes,
+  // not each time `highlighted` is a new array with the same edges
   const highlightedKey = highlighted.map((e) => e.id).join("|");
   const edges = useMemo<UmlFlowEdge[]>(() => {
     const top = new Set(highlightedKey ? highlightedKey.split("|") : []);
@@ -189,16 +191,16 @@ export default function Diagram({ model, focus, onSelect, neighbourDetails = fal
     <div className="uml-main" data-schema-viewer={scope}>
       <div className="uml-focusbar">
         <div className="uml-focusbar__title">
-          <span className={`uml-kind-dot uml-kind-dot--${c.kind}`} aria-hidden="true" />
-          <strong className={c.kind === "abstract" ? "uml-name--italic" : undefined}>{c.name}</strong>
-          <span className="uml-badge">{KIND_LABEL[c.kind]}</span>
-          <span className="uml-badge uml-badge--file" title={c.file}>
-            {fileName(c.file)}
-            {c.group ? ` › ${c.group}` : ""}
+          <span className={`uml-kind-dot uml-kind-dot--${classifier.kind}`} aria-hidden="true" />
+          <strong className={classifier.kind === "abstract" ? "uml-name--italic" : undefined}>{classifier.name}</strong>
+          <span className="uml-badge">{KIND_LABEL[classifier.kind]}</span>
+          <span className="uml-badge uml-badge--file" title={classifier.file}>
+            {fileName(classifier.file)}
+            {classifier.group ? ` › ${classifier.group}` : ""}
           </span>
           <span className="uml-meta">used by {usedBy}</span>
           {hidden > 0 && <span className="uml-meta">· {hidden} neighbour(s) hidden</span>}
-          {c.comment && <span className="uml-meta uml-meta--comment" title={c.comment}>{c.comment}</span>}
+          {classifier.comment && <span className="uml-meta uml-meta--comment" title={classifier.comment}>{classifier.comment}</span>}
         </div>
         <div className="uml-focusbar__actions">
           <label>
@@ -230,7 +232,7 @@ export default function Diagram({ model, focus, onSelect, neighbourDetails = fal
         <UmlMarkers />
         {hoverCss && <style>{hoverCss}</style>}
         {canvas}
-        {panel === "json" && <pre className="uml-panel">{JSON.stringify(c.schema, null, 2)}</pre>}
+        {panel === "json" && <pre className="uml-panel">{JSON.stringify(classifier.schema, null, 2)}</pre>}
         {panel === "diagnostics" && (
           <div className="uml-panel">
             <h3>Schema warnings</h3>

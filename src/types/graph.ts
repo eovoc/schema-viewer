@@ -1,17 +1,28 @@
 // Diagram of one definition, as computed by buildFocusGraph (utils/focusGraph.ts): boxes, rows, edges.
 import type { Classifier, DefId, RelationKind } from "./schema";
 
+/**
+ * One row of a box. Two forms:
+ * - text row (`text` set): a summary, a value, a constraint… drawn as plain text, the other fields are ignored;
+ * - attribute row: `name`, then `type` or `value`, `multiplicity`, `constraints`.
+ */
 export interface RowData {
+  /** Unique in the box. Attribute rows: "a:<attribute name>", also the id of their handle (see HandleId) */
   id: string;
   name?: string;
   type?: string;
+  /** Constant value (discriminator), shown as "name = value" */
   value?: string;
   multiplicity?: string;
   constraints?: string[];
   required?: boolean;
+  /** Definition opened by a click on the type */
   target?: DefId;
+  /** Text row: the whole text of the row */
   text?: string;
+  /** Drawn in grey italics (summaries, "… +N (show all)") */
   muted?: boolean;
+  /** An edge starts from this row: it gets a handle on the right edge of the box */
   port?: boolean;
 }
 
@@ -28,9 +39,13 @@ export type UmlNodeData = {
   rows: RowData[];
   /** Enumeration or abstract class whose list is longer than its rows: the whole list, shown scrollable on demand */
   allItems?: ListItem[];
+  /** Box at the centre of the diagram */
   isFocus: boolean;
+  /** Summary only (one row), i.e. a neighbour without "Neighbour details" */
   compact: boolean;
+  /** Name in italics (abstract class, UML convention) */
   italic: boolean;
+  /** A click opens this definition (every box except the centre one and "+N more") */
   navigable: boolean;
   file?: string;
   comment?: string;

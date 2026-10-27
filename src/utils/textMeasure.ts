@@ -1,6 +1,7 @@
 // Text measurement, to size the boxes before the layout.
 // Browser: canvas (exact). Without canvas (tests under jsdom): estimate.
 
+/** Must match --uml-font in styles/base.css: the texts are measured with this font */
 export const FONT_FAMILY = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
 export type MeasureText = (text: string, font: { size: number; bold?: boolean; italic?: boolean }) => number;

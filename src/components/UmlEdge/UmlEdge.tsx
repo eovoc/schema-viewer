@@ -17,6 +17,8 @@ export type UmlEdgeData = {
 export type UmlFlowEdge = Edge<UmlEdgeData, "uml">;
 
 const RADIUS = 8;
+/** Two coordinates closer than this (px) are the same: ELK and React Flow can differ by a fraction of a pixel */
+const SAME = 0.5;
 
 /**
  * Orthogonal polyline with rounded corners. The ends are snapped onto the React Flow handles
@@ -25,8 +27,8 @@ const RADIUS = 8;
 export function orthogonalPath(route: Point[], source: Point, target: Point): string {
   const pts = route.map((p) => ({ ...p }));
   const last = pts.length - 1;
-  if (pts.length >= 2 && Math.abs(pts[0].y - pts[1].y) < 0.5) pts[1].y = source.y;
-  if (pts.length >= 2 && Math.abs(pts[last].y - pts[last - 1].y) < 0.5) pts[last - 1].y = target.y;
+  if (pts.length >= 2 && Math.abs(pts[0].y - pts[1].y) < SAME) pts[1].y = source.y;
+  if (pts.length >= 2 && Math.abs(pts[last].y - pts[last - 1].y) < SAME) pts[last - 1].y = target.y;
   pts[0] = { ...source };
   pts[last] = { ...target };
   // drop collinear or duplicate points (avoids tiny "staircase" bends)
@@ -34,9 +36,9 @@ export function orthogonalPath(route: Point[], source: Point, target: Point): st
   for (let i = 1; i < pts.length; i++) {
     const p = pts[i];
     const prev = clean.at(-1)!;
-    if (Math.abs(p.x - prev.x) < 0.5 && Math.abs(p.y - prev.y) < 0.5) continue;
+    if (Math.abs(p.x - prev.x) < SAME && Math.abs(p.y - prev.y) < SAME) continue;
     const before = clean.at(-2);
-    if (before && ((Math.abs(before.x - prev.x) < 0.5 && Math.abs(prev.x - p.x) < 0.5) || (Math.abs(before.y - prev.y) < 0.5 && Math.abs(prev.y - p.y) < 0.5))) {
+    if (before && ((Math.abs(before.x - prev.x) < SAME && Math.abs(prev.x - p.x) < SAME) || (Math.abs(before.y - prev.y) < SAME && Math.abs(prev.y - p.y) < SAME))) {
       clean[clean.length - 1] = p;
       continue;
     }

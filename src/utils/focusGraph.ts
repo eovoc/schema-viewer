@@ -11,23 +11,27 @@ import { BODY_PAD, EMPTY_BODY_H, HEADER_BORDER, headerHeight, nodeBorder, ROW_H 
 import { isDrawable, isInheritance, referencedOf, referrerOf } from "./schemaModel";
 import { measureText, type MeasureText } from "./textMeasure";
 
-// ---------------------------------------------------------------------------
-// Graph
-
+/** Font sizes (px) used to measure the texts: must match .uml-node and .uml-stereotype in styles/node.css */
 const FONT = 12;
 const STEREO_FONT = 10.8;
+/** Horizontal room added to a measured text: padding 2 × 10px, plus slack for canvas vs DOM rounding and zoom */
+const TEXT_PADDING = 32;
+/** Width limits of a box (px) */
 const MIN_W = 140;
 const MAX_W = 460;
 /** Rows of a list (values of an enumeration, subclasses of an abstract class) before "… +N (show all)" */
 const MAX_LIST_ROWS = 14;
 
 export interface FocusGraphOptions {
+  /** Neighbouring boxes with all their rows (attributes, values) instead of a one-line summary. Default false */
   neighbourDetails?: boolean;
   /** Show the constraints in braces ({unique}, {closed}, {format=…}…). Default true */
   constraints?: boolean;
-  /** Class or abstract class at the centre: also show, on the right, the enumerations it uses («use» dependency). Default false */
+  /** Class or abstract class at the centre: also show, on the right, the enumerations it uses («use» dependency). Default true */
   enumerations?: boolean;
+  /** Most neighbours drawn on each side; the others are counted in a "+N more" box. Default 30 */
   maxPerSide?: number;
+  /** Text measurement, to size the boxes. Default: canvas in a browser, estimate elsewhere (tests) */
   measure?: MeasureText;
 }
 
@@ -40,6 +44,10 @@ const STEREOTYPES: Partial<Record<UmlNodeData["kind"], string>> = {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+/**
+ * Text of a row, as measured to size its box. UmlNode's Row draws the same parts with the same separators:
+ * change both together, otherwise the text no longer fits its box.
+ */
 export function rowText(r: RowData): string {
   if (r.text !== undefined) return r.text;
   let s = r.name ?? "";
@@ -64,6 +72,7 @@ const listOf = (c: Classifier, model: SchemaModel): ListItem[] =>
     ? c.members.map((id) => ({ id, text: model.classifiers.get(id)?.name ?? id }))
     : c.literals.map((value) => ({ id: value, text: value }));
 
+/** Rows of a box. `full`: every row (centre box, or "Neighbour details"); otherwise a one-line summary. */
 function rowsFor(c: Classifier, list: ListItem[], full: boolean, constraints: boolean): RowData[] {
   if (!full) {
     if (c.kind === "abstract") return [{ id: "summary", text: plural(c.members.length, "subclass", "subclasses"), muted: true }];
@@ -102,9 +111,9 @@ function makeNode(c: Classifier, list: ListItem[], isFocus: boolean, full: boole
       MAX_W,
       Math.max(
         MIN_W,
-        measure(c.name, { size: FONT, bold: true, italic: c.kind === "abstract" }) + 32,
-        stereotype ? measure(stereotype, { size: STEREO_FONT }) + 32 : 0,
-        ...rows.map((r) => measure(rowText(r), { size: FONT, italic: r.muted }) + 32) // padding 20 + slack (canvas vs DOM rounding, zoom)
+        measure(c.name, { size: FONT, bold: true, italic: c.kind === "abstract" }) + TEXT_PADDING,
+        stereotype ? measure(stereotype, { size: STEREO_FONT }) + TEXT_PADDING : 0,
+        ...rows.map((r) => measure(rowText(r), { size: FONT, italic: r.muted }) + TEXT_PADDING)
       )
     )
   );
@@ -138,7 +147,7 @@ function moreNode(id: string, count: number, measure: MeasureText): GraphNode {
     id,
     x: 0,
     y: 0,
-    width: Math.max(MIN_W, measure(text, { size: FONT }) + 32),
+    width: Math.max(MIN_W, measure(text, { size: FONT }) + TEXT_PADDING),
     height: headerHeight() + EMPTY_BODY_H,
     data: { name: text, kind: "more", rows: [], isFocus: false, compact: true, italic: false, navigable: false },
   };
@@ -170,24 +179,24 @@ let elk: Promise<ElkEngine> | undefined;
 const getElk = () => (elk ??= import("elkjs/lib/elk.bundled.js").then((m) => new m.default()));
 
 export async function buildFocusGraph(model: SchemaModel, focus: DefId, options: FocusGraphOptions = {}): Promise<FocusGraph> {
-  const { neighbourDetails = false, constraints = true, enumerations = false, maxPerSide = 30, measure = measureText } = options;
-  const fc = model.classifiers.get(focus);
-  if (!fc) throw new Error(`Unknown definition: ${focus}`);
+  const { neighbourDetails = false, constraints = true, enumerations = true, maxPerSide = 30, measure = measureText } = options;
+  const focusClassifier = model.classifiers.get(focus);
+  if (!focusClassifier) throw new Error(`Unknown definition: ${focus}`);
 
   const nodes = new Map<string, GraphNode>();
   const edges: GraphEdge[] = [];
   const node = (c: Classifier, isFocus: boolean, full: boolean) => makeNode(c, listOf(c, model), isFocus, full, measure, constraints);
-  nodes.set(focus, node(fc, true, true));
+  nodes.set(focus, node(focusClassifier, true, true));
 
   const drawable = (id: DefId) => id !== focus && isDrawable(model.classifiers.get(id));
   const outRels = model.relations.filter((r) => referrerOf(r) === focus && drawable(referencedOf(r)));
-  if (enumerations && isDrawable(fc)) {
+  if (enumerations && isDrawable(focusClassifier)) {
     // enumerations used by the focus: «use» dependencies, on the right with the classes (attribute order)
     outRels.push(
       ...model.usages.filter((r) => r.source === focus && r.target !== focus && model.classifiers.get(r.target)?.kind === "enumeration")
     );
   }
-  const incoming = isDrawable(fc) ? model.relations : model.usages;
+  const incoming = isDrawable(focusClassifier) ? model.relations : model.usages;
   const inRels = incoming.filter((r) => referencedOf(r) === focus && drawable(referrerOf(r)));
   const generalized = new Set<DefId>([
     ...outRels.filter((r) => isInheritance(r.kind)).map(referencedOf),
@@ -198,7 +207,11 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
 
   const byName = (a: Group, b: Group) => model.classifiers.get(a.neighbour)!.name.localeCompare(model.classifiers.get(b.neighbour)!.name);
   const hidden = { left: 0, right: 0 };
-  const take = (groups: Group[], side: "left" | "right") => {
+  /**
+   * Keeps the first neighbours of one side. Beyond `maxPerSide`, the last place goes to a "+N more" box
+   * (added here) and `hidden[side]` counts the neighbours left out.
+   */
+  const keepFirstNeighbours = (groups: Group[], side: "left" | "right") => {
     const ids = Array.from(new Set(groups.map((g) => g.neighbour)));
     const kept = new Set(ids.length > maxPerSide ? ids.slice(0, maxPerSide - 1) : ids);
     hidden[side] = ids.length - kept.size;
@@ -208,16 +221,16 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
 
   // Right: what the focus references, in the order of the attributes leading there (no crossing routes)
   const rowIndex = (g: Group) => {
-    const i = Math.min(...g.roles.map((r) => fc.attributes.findIndex((a) => a.name === r)).filter((i) => i >= 0));
+    const i = Math.min(...g.roles.map((r) => focusClassifier.attributes.findIndex((a) => a.name === r)).filter((i) => i >= 0));
     return Number.isFinite(i) ? i : Number.MAX_SAFE_INTEGER;
   };
   outGroups.sort((a, b) => rowIndex(a) - rowIndex(b) || byName(a, b));
-  const right = take(outGroups, "right");
+  const right = keepFirstNeighbours(outGroups, "right");
   right.forEach((g) => {
     if (!nodes.has(g.neighbour)) nodes.set(g.neighbour, node(model.classifiers.get(g.neighbour)!, false, neighbourDetails));
     if (!isInheritance(g.kind)) {
       g.roles.forEach((role) => {
-        const attr = fc.attributes.find((a) => a.name === role);
+        const attr = focusClassifier.attributes.find((a) => a.name === role);
         // a row typed by an enumeration has no port of its own (not a class): give it one for the «use» edge
         const row = nodes.get(focus)!.data.rows.find((r) => r.id === `a:${role}`);
         if (row) row.port = true;
@@ -258,17 +271,17 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
   const onRight = new Set(right.map((g) => g.neighbour));
   const leftGroups = inGroups.filter((g) => !onRight.has(g.neighbour));
   leftGroups.sort(byName);
-  const left = take(leftGroups, "left");
+  const left = keepFirstNeighbours(leftGroups, "left");
   const back = inGroups.filter((g) => onRight.has(g.neighbour));
   left.forEach((g) => {
-    const n = model.classifiers.get(g.neighbour)!;
-    if (!nodes.has(g.neighbour)) nodes.set(g.neighbour, node(n, false, neighbourDetails));
+    const neighbour = model.classifiers.get(g.neighbour)!;
+    if (!nodes.has(g.neighbour)) nodes.set(g.neighbour, node(neighbour, false, neighbourDetails));
     const label = g.roles.length ? g.roles.join(", ") : undefined;
     if (!isInheritance(g.kind) && neighbourDetails) {
-      const node = nodes.get(g.neighbour)!;
+      const neighbourNode = nodes.get(g.neighbour)!;
       g.roles.forEach((role) => {
         // the attribute row becomes a port, even when its type is not a class (codelist view)
-        const row = node.data.rows.find((r) => r.id === `a:${role}`);
+        const row = neighbourNode.data.rows.find((r) => r.id === `a:${role}`);
         if (row) row.port = true;
         edges.push({
           id: `in:${g.kind}:${g.neighbour}.${role}`,
@@ -278,7 +291,7 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
           target: focus,
           targetHandle: "in",
           label: role,
-          multiplicity: n.attributes.find((a) => a.name === role)?.multiplicity ?? "1",
+          multiplicity: neighbour.attributes.find((a) => a.name === role)?.multiplicity ?? "1",
           // next to the attribute row: one row per edge, so the labels never overlap
           labelAt: "source",
           triangleAtSource: false,
@@ -340,12 +353,12 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
 function combineLabels(edges: GraphEdge[]) {
   const byTarget = new Map<string, GraphEdge[]>();
   edges.forEach((e) => byTarget.set(e.target, [...(byTarget.get(e.target) ?? []), e]));
-  byTarget.forEach((es) => {
-    if (es.length < 2) return;
-    const sameMultiplicity = es.every((e) => e.multiplicity === es[0].multiplicity);
-    es[0].label = es.map((e) => (sameMultiplicity ? e.label : `${e.label} [${e.multiplicity}]`)).join(", ");
-    es[0].multiplicity = sameMultiplicity ? es[0].multiplicity : undefined;
-    es.slice(1).forEach((e) => {
+  byTarget.forEach((sameTarget) => {
+    if (sameTarget.length < 2) return;
+    const sameMultiplicity = sameTarget.every((e) => e.multiplicity === sameTarget[0].multiplicity);
+    sameTarget[0].label = sameTarget.map((e) => (sameMultiplicity ? e.label : `${e.label} [${e.multiplicity}]`)).join(", ");
+    sameTarget[0].multiplicity = sameMultiplicity ? sameTarget[0].multiplicity : undefined;
+    sameTarget.slice(1).forEach((e) => {
       e.label = undefined;
       e.multiplicity = undefined;
     });
@@ -380,6 +393,7 @@ async function layout(nodes: GraphNode[], edges: GraphEdge[]): Promise<void> {
     layoutOptions: {
       "elk.algorithm": "layered",
       "elk.direction": "RIGHT",
+      // room for the edge labels between two columns: see max-width of .uml-edge-label in styles/edge.css
       "elk.layered.spacing.nodeNodeBetweenLayers": "150",
       "elk.spacing.nodeNode": "26",
       "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",

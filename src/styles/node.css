@@ -15,7 +15,7 @@
   border: var(--uml-border-width) solid var(--uml-border);
   border-radius: 4px;
   font-family: var(--uml-font), sans-serif;
-  font-size: 12px;
+  font-size: 12px; /* = FONT in utils/focusGraph.ts (text measurement) */
   color: var(--uml-text);
   overflow: hidden;
   box-shadow: 0 1px 2px rgba(29, 39, 51, 0.08);
@@ -36,6 +36,7 @@
 .uml-node--datatype .uml-header { background: var(--uml-header-datatype); }
 .uml-node--more { border-style: dashed; }
 .uml-node--more .uml-header { background: var(--uml-surface); border-bottom: 0; color: var(--uml-muted); }
+/* font-size = STEREO_FONT in utils/focusGraph.ts (text measurement) */
 .uml-stereotype { font-size: 10.8px; color: var(--uml-muted); line-height: 13px; }
 .uml-name { font-weight: 700; line-height: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .uml-name--italic { font-style: italic; }

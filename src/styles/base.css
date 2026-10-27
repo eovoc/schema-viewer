@@ -1,5 +1,6 @@
 /* ---- Viewer: CSS variables (colours, sizes), grid of the table of contents and the diagram ---- */
 .schema-viewer {
+  /* same as FONT_FAMILY in utils/textMeasure.ts, which measures the texts to size the boxes */
   --uml-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --uml-text: #1d2733;
   --uml-muted: #7a8696;

@@ -46,12 +46,12 @@ export default function SchemaViewer(props: Readonly<SchemaViewerProps>) {
   const model = loaded.status === "ready" ? loaded.model : undefined;
 
   // selection: from the `selected` prop when controlled, otherwise kept here
-  const [own, setOwn] = useState<string | undefined>(undefined);
-  const requested = controlled ? selected : own;
+  const [ownSelection, setOwnSelection] = useState<string | undefined>(undefined);
+  const requested = controlled ? selected : ownSelection;
   const focus = model && (requested ? findDefinition(model, requested) : model.defaultDefinition);
   const select = (id: DefId) => {
     if (!model) return;
-    if (!controlled) setOwn(id);
+    if (!controlled) setOwnSelection(id);
     onSelect?.(id, model);
   };
 

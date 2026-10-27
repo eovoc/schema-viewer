@@ -18,6 +18,7 @@ interface RowProps {
   onHover: (rowId: string | null) => void;
 }
 
+/** One row of a box. Draws the same parts as rowText (utils/focusGraph.ts), which measures the width: change both together. */
 function Row({ row, onNavigate, onHover }: Readonly<RowProps>) {
   if (row.text !== undefined) {
     return <div className={`uml-row${row.muted ? " uml-row--muted" : ""}`}>{row.text}</div>;
@@ -68,9 +69,9 @@ function Row({ row, onNavigate, onHover }: Readonly<RowProps>) {
  * Long list (values of an enumeration, subclasses of an abstract class): the first items and "… +N (show all)";
  * a click shows every item in a scrollable list of the same height (the box keeps its size, so the layout does not change).
  */
-function Literals({ rows, all, unit }: Readonly<{ rows: RowData[]; all: ListItem[]; unit: string }>) {
+function ExpandableList({ rows, all, unit }: Readonly<{ rows: RowData[]; all: ListItem[]; unit: string }>) {
   const [expanded, setExpanded] = useState(false);
-  const shown = rows.slice(0, -1); // without the "… +N" row
+  const shown = rows.slice(0, -1); // without the "… +N" row, always the last one (listRows in utils/focusGraph.ts)
   const toggle = (
     <button type="button" className="uml-row uml-row--muted uml-literals__toggle nodrag" onClick={(e) => {
       e.stopPropagation();
@@ -157,7 +158,7 @@ function UmlNode({ id, data }: Readonly<NodeProps<UmlFlowNode>>) {
       {data.kind !== "more" && (
         <div className={`uml-body${data.rows.length ? "" : " uml-body--empty"}`}>
           {data.allItems ? (
-            <Literals rows={data.rows} all={data.allItems} unit={data.kind === "abstract" ? "subclasses" : "values"} />
+            <ExpandableList rows={data.rows} all={data.allItems} unit={data.kind === "abstract" ? "subclasses" : "values"} />
           ) : (
             data.rows.map((r) => <Row key={r.id} row={r} onNavigate={data.onNavigate} onHover={(rowId) => data.onHoverRow(id, rowId)} />)
           )}
