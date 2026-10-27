@@ -1,2 +1,2 @@
-export { default, edgeMarkers, UmlMarkers } from "./UmlEdge";
+export { default } from "./UmlEdge";
 export type { UmlFlowEdge } from "./UmlEdge";

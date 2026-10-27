@@ -7,7 +7,8 @@ import { buildFocusGraph } from "../../utils/focusGraph";
 import { fileName } from "../../utils/refs";
 import { isDrawable, referencedOf, referrerOf } from "../../utils/schemaModel";
 import type { DefId, SchemaModel } from "../../types/schema";
-import UmlEdge, { edgeMarkers, UmlMarkers, type UmlFlowEdge } from "../UmlEdge";
+import UmlEdge, { type UmlFlowEdge } from "../UmlEdge";
+import UmlMarkers, { edgeMarkers } from "../UmlMarkers";
 import UmlNode, { type UmlFlowNode } from "../UmlNode";
 import Legend from "../Legend";
 
