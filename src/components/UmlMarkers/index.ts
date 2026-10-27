@@ -1,1 +1,1 @@
-export { default, edgeMarkers } from "./UmlMarkers";
+export { default } from "./UmlMarkers";

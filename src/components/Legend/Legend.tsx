@@ -1,6 +1,6 @@
 // Legend of the UML relations that a JSON Schema produces, drawn with the same markers as the diagram (see UmlMarkers).
 import type { RelationKind } from "../../types/schema";
-import { edgeMarkers } from "../UmlMarkers";
+import { edgeMarkers } from "../../utils/markers";
 
 const LEGEND: { kind: RelationKind; label: string; title: string }[] = [
   { kind: "association", label: "association", title: "$ref property to a class" },
