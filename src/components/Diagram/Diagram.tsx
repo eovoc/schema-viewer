@@ -1,6 +1,7 @@
 // UML diagram of one definition: top bar, React Flow canvas, JSON and warnings panels, legend.
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import { Background, Controls, getViewportForBounds, ReactFlow, type EdgeTypes, type NodeTypes, type Viewport } from "@xyflow/react";
+import { useElementSize } from "../../hooks/useElementSize";
 import type { FocusGraph } from "../../types/graph";
 import { buildFocusGraph } from "../../utils/focusGraph";
 import { fileName } from "../../utils/refs";
@@ -123,18 +124,7 @@ export default function Diagram({ model, focus, onSelect, neighbourDetails = fal
   // Size of the drawing area, to fit the diagram before its first frame. With React Flow's own `fitView`,
   // the new diagram is drawn once unscaled at (0, 0), then fitted: a visible flash.
   // React Flow reads `defaultViewport` only when a diagram appears: resizing the window later does not move it.
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
-  useEffect(() => {
-    const el = canvasRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect;
-      setSize((s) => (s?.width === width && s?.height === height ? s : { width, height }));
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+  const [canvasRef, size] = useElementSize<HTMLDivElement>();
   const fit = useMemo<{ viewport: Viewport; padding: number } | undefined>(() => {
     if (!current || !size || !current.graph.nodes.length) return undefined;
     const ns = current.graph.nodes;
