@@ -1,7 +1,22 @@
 // URLs and $ref: file name of a URL, $ref values of a schema, document a $ref points to,
 // target of a $ref in the loaded documents (resolveRef) and the reverse (relativeRef).
-import type { JsonSchema } from "../types/schema";
+import type { DefId, JsonSchema } from "../types/schema";
 import { escapePointer, getPointer, pointerName } from "./jsonPointer";
+
+/** Keywords whose values are data (examples, defaults, allowed values), not schemas: never searched for $ref */
+const DATA_KEYWORDS = new Set(["enum", "const", "examples", "default"]);
+
+/** JSON Schema meta-schemas: never loaded, shown as the type JSONSchema */
+const isMetaSchema = (url: string) => /^https?:\/\/json-schema\.org\//.test(url);
+
+/** Id of a definition: "<document URL>#<JSON Pointer>" (see DefId) */
+export const makeDefId = (url: string, pointer: string): DefId => `${url}#${pointer}`;
+
+/** Document URL and JSON Pointer of a definition id. An id without "#" is a whole document (empty pointer). */
+export function splitDefId(id: DefId): { url: string; pointer: string } {
+  const hash = id.indexOf("#");
+  return hash < 0 ? { url: id, pointer: "" } : { url: id.slice(0, hash), pointer: id.slice(hash + 1) };
+}
 
 /** Last part of a URL: "https://host/schemas/mdj.json" -> "mdj.json" (query, fragment and trailing slashes ignored) */
 export function fileName(url: string): string {
@@ -18,7 +33,7 @@ export function collectRefs(schema: unknown, refs: string[] = []): string[] {
   } else if (schema && typeof schema === "object") {
     for (const [key, value] of Object.entries(schema)) {
       if (key === "$ref" && typeof value === "string") refs.push(value);
-      else if (!["enum", "const", "examples", "default"].includes(key)) collectRefs(value, refs);
+      else if (!DATA_KEYWORDS.has(key)) collectRefs(value, refs);
     }
   }
   return refs;
@@ -32,7 +47,7 @@ export function referencedDocument(ref: string, from: string): string | undefine
   const file = ref.split("#")[0];
   if (!file) return undefined;
   const url = new URL(file, from).href;
-  return /^https?:\/\/json-schema\.org\//.test(url) ? undefined : url;
+  return isMetaSchema(url) ? undefined : url;
 }
 
 /** Location of a plain-name fragment ("#Foo"): a sub-schema with `$anchor: "Foo"` or (draft-07) `$id: "#Foo"` */
@@ -41,7 +56,7 @@ function findAnchor(node: unknown, anchor: string, pointer = ""): string | undef
   const obj = node as JsonSchema;
   if (obj.$anchor === anchor || obj.$id === `#${anchor}`) return pointer;
   for (const [key, value] of Object.entries(obj)) {
-    if (["enum", "const", "examples", "default"].includes(key)) continue;
+    if (DATA_KEYWORDS.has(key)) continue;
     const found = findAnchor(value, anchor, `${pointer}/${escapePointer(key)}`);
     if (found !== undefined) return found;
   }
@@ -75,11 +90,11 @@ export function resolveRef(ref: string, from: string, documents: Record<string, 
     report(`${fileName(from)}: invalid reference "${ref}"`);
     return { label: ref };
   }
-  if (/^https?:\/\/json-schema\.org\//.test(url)) return { label: "JSONSchema" };
+  if (isMetaSchema(url)) return { label: "JSONSchema" };
   const doc = documents[url];
   if (!doc) return { label: ref }; // document not loaded: already reported by loadSchemaBundle
 
-  if (fragment === "" || fragment === "/") return { id: `${url}#`, label: fileName(url) };
+  if (fragment === "" || fragment === "/") return { id: makeDefId(url, ""), label: fileName(url) };
   let pointer = fragment;
   if (!fragment.startsWith("/")) {
     const anchor = findAnchor(doc, fragment);
@@ -96,13 +111,12 @@ export function resolveRef(ref: string, from: string, documents: Record<string, 
     report(`${fileName(from)}: reference "${ref}" not found`);
     return { label: pointerName(pointer) || ref };
   }
-  return { id: `${url}#${pointer}`, label: pointerName(pointer) };
+  return { id: makeDefId(url, pointer), label: pointerName(pointer) };
 }
 
 /** Inverse of resolveRef for display and URLs: the shortest $ref, written in `base`, that points to `id` */
 export function relativeRef(id: string, base: string): string {
-  const hash = id.indexOf("#");
-  const [url, pointer] = [id.slice(0, hash), id.slice(hash + 1)];
+  const { url, pointer } = splitDefId(id);
   if (url === base) return `#${pointer}`;
   const dir = base.slice(0, base.lastIndexOf("/") + 1);
   const relative = url.startsWith(dir) && !url.slice(dir.length).includes("/") ? url.slice(dir.length) : url;

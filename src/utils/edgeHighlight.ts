@@ -2,6 +2,7 @@
 // re-observes them ("ResizeObserver loop completed with undelivered notifications").
 // Used by components/Diagram: what is under the pointer -> edges to highlight -> CSS rules.
 import type { FocusGraph } from "../types/graph";
+import { isAttributeHandle } from "./handles";
 import { edgeMarkers } from "./markers";
 
 export type Hover = { node: string; row?: string } | { edge: string };
@@ -39,7 +40,7 @@ export function highlightCss(edges: FocusGraph["edges"], scope: string): string 
     const markerEnd = m.end ? `marker-end: url(#${m.end});` : "";
     const markers = markerStart + markerEnd;
     rules.push(`${path} { stroke: var(--uml-accent); stroke-width: 1.8; ${markers} }`);
-    if (e.sourceHandle.startsWith("a:")) {
+    if (isAttributeHandle(e.sourceHandle)) {
       rules.push(`${root} .react-flow__node[data-id=${attr(e.source)}] .uml-row[data-row=${attr(e.sourceHandle)}] { background: var(--uml-accent-soft); }`);
     }
   });

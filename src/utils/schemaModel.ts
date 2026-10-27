@@ -1,7 +1,7 @@
 // JSON Schema (draft-07, one or more documents) -> UML model: classes, attributes, relations.
 // The rules are listed in the README ("JSON Schema -> UML rules").
 import { escapePointer, getPointer, pointerName } from "./jsonPointer";
-import { collectRefs, fileName, resolveRef } from "./refs";
+import { collectRefs, fileName, makeDefId, resolveRef, splitDefId } from "./refs";
 import type { Attribute, Classifier, ClassifierKind, DefId, JsonSchema, Relation, RelationKind, SchemaBundle, SchemaModel } from "../types/schema";
 
 /** Generalization (inheritance): the edge goes from the subclass to the parent */
@@ -122,6 +122,15 @@ function isContainer(s: unknown): boolean {
 
 const stem = (file: string) => fileName(file).replace(/\.(schema\.)?json$/i, "");
 
+/** A classifier with empty lists; the caller gives its identity, kind, schema and what it already knows */
+const newClassifier = (fields: Pick<Classifier, "id" | "name" | "file" | "kind" | "schema"> & Partial<Classifier>): Classifier => ({
+  attributes: [],
+  members: [],
+  literals: [],
+  constraints: [],
+  ...fields,
+});
+
 export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
   const files = bundle.documents;
   const documents = [bundle.root, ...Object.keys(files).filter((f) => f !== bundle.root)];
@@ -134,24 +143,30 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
   const quiet = () => undefined;
   const classifiers = new Map<DefId, Classifier>();
   const raw = new Map<DefId, RawKind>();
+  /** Classifier of an id already declared: every id met after step 1 is one */
+  const classifierOf = (id: DefId) => {
+    const c = classifiers.get(id);
+    if (!c) throw new Error(`Unknown definition: ${id}`);
+    return c;
+  };
 
   const addClassifier = (file: string, pointer: string, schema: JsonSchema, name: string, group?: string) => {
-    const id = `${file}#${pointer}`;
+    const id = makeDefId(file, pointer);
     if (classifiers.has(id) || !schema || typeof schema !== "object" || Array.isArray(schema)) return;
     raw.set(id, rawKind(schema));
-    classifiers.set(id, {
+    classifiers.set(
       id,
-      name,
-      file,
-      group,
-      kind: "datatype",
-      comment: schema.description ?? (schema.$comment !== name ? schema.$comment : undefined) ?? schema.title,
-      attributes: [],
-      members: [],
-      literals: literalsOf(schema),
-      constraints: [],
-      schema,
-    });
+      newClassifier({
+        id,
+        name,
+        file,
+        group,
+        kind: "datatype", // provisional: set in step 2
+        comment: schema.description ?? (schema.$comment !== name ? schema.$comment : undefined) ?? schema.title,
+        literals: literalsOf(schema),
+        schema,
+      })
+    );
   };
   const declareAll = (file: string, defs: JsonSchema, base: string, group?: string) => {
     for (const [name, schema] of Object.entries<JsonSchema>(defs)) {
@@ -175,7 +190,7 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
     collectRefs(files[file]).forEach((ref) => {
       const { id } = resolveRef(ref, file, files, quiet);
       if (!id || classifiers.has(id)) return;
-      const [doc, pointer] = [id.slice(0, id.indexOf("#")), id.slice(id.indexOf("#") + 1)];
+      const { url: doc, pointer } = splitDefId(id);
       addClassifier(doc, pointer, getPointer(files[doc], pointer) as JsonSchema, pointer ? pointerName(pointer) : stem(doc));
     });
   }
@@ -186,7 +201,7 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
   const aliasTarget = (id: DefId, seen = new Set<DefId>()): DefId => {
     if (raw.get(id) !== "alias" || seen.has(id)) return id;
     seen.add(id);
-    const c = classifiers.get(id)!;
+    const c = classifierOf(id);
     const target = resolve(c.schema.$ref, c.file).id;
     return target ? aliasTarget(target, seen) : id;
   };
@@ -197,8 +212,9 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
     if (r !== "union") return r ?? "datatype";
     if (seen.has(id)) return "abstract";
     seen.add(id);
-    const c = classifiers.get(id)!;
-    const alts = alternativesOf(c.schema)!.filter((a) => typeof a?.$ref === "string");
+    const c = classifierOf(id);
+    // a "union" always has alternatives: its kind comes from them
+    const alts = (alternativesOf(c.schema) ?? []).filter((a) => typeof a?.$ref === "string");
     const members = alts.map((a) => follow(resolve(a.$ref, c.file).id));
     return members.every((m) => m && ["class", "abstract"].includes(kindOf(m, seen))) ? "abstract" : "datatype";
   };
@@ -220,7 +236,7 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
   const refLabel = (ref: string, file: string): string => {
     const r = resolve(ref, file);
     const target = follow(r.id);
-    return target ? classifiers.get(target)!.name : r.label;
+    return target ? classifierOf(target).name : r.label;
   };
 
   const typeLabel = (s: JsonSchema, file: string): string => {
@@ -258,20 +274,10 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
     const id = `${parent.id}/properties/${escapePointer(prop)}`;
     if (!classifiers.has(id)) {
       // added during the iteration: Map.forEach will visit it and build its attributes
-      classifiers.set(id, {
+      classifiers.set(
         id,
-        name: `${parent.name}.${prop}`,
-        file: parent.file,
-        group: parent.group,
-        kind: "class",
-        synthetic: true,
-        comment: schema.description,
-        attributes: [],
-        members: [],
-        literals: [],
-        constraints: [],
-        schema,
-      });
+        newClassifier({ id, name: `${parent.name}.${prop}`, file: parent.file, group: parent.group, kind: "class", synthetic: true, comment: schema.description, schema })
+      );
     }
     return id;
   };
@@ -280,20 +286,11 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
   const syntheticAlternative = (parent: Classifier, key: string, i: number, schema: JsonSchema): DefId => {
     const id = `${parent.id}/${key}/${i}`;
     if (!classifiers.has(id)) {
-      classifiers.set(id, {
+      const name = typeof schema.title === "string" && schema.title.length <= MAX_TITLE_AS_NAME ? schema.title : `${parent.name}.${key}[${i}]`;
+      classifiers.set(
         id,
-        name: typeof schema.title === "string" && schema.title.length <= MAX_TITLE_AS_NAME ? schema.title : `${parent.name}.${key}[${i}]`,
-        file: parent.file,
-        group: parent.group,
-        kind: "class",
-        synthetic: true,
-        comment: schema.description,
-        attributes: [],
-        members: [],
-        literals: [],
-        constraints: [],
-        schema,
-      });
+        newClassifier({ id, name, file: parent.file, group: parent.group, kind: "class", synthetic: true, comment: schema.description, schema })
+      );
     }
     return id;
   };
@@ -302,20 +299,20 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
   const syntheticEnum = (parent: Classifier, prop: string, schema: JsonSchema): DefId => {
     const id = `${parent.id}/properties/${escapePointer(prop)}`;
     if (!classifiers.has(id)) {
-      classifiers.set(id, {
+      classifiers.set(
         id,
-        name: `${parent.name}.${prop}`,
-        file: parent.file,
-        group: parent.group,
-        kind: "enumeration",
-        synthetic: true,
-        comment: schema.description,
-        attributes: [],
-        members: [],
-        literals: literalsOf(schema),
-        constraints: [],
-        schema,
-      });
+        newClassifier({
+          id,
+          name: `${parent.name}.${prop}`,
+          file: parent.file,
+          group: parent.group,
+          kind: "enumeration",
+          synthetic: true,
+          comment: schema.description,
+          literals: literalsOf(schema),
+          schema,
+        })
+      );
     }
     return id;
   };
@@ -328,7 +325,7 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
       const id = syntheticFor(owner, name, item);
       return {
         name,
-        type: classifiers.get(id)!.name,
+        type: classifierOf(id).name,
         multiplicity: multiplicity(s, required),
         required,
         constraints: constraintsOf(s, {}),
@@ -423,7 +420,8 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
   /** Abstract class: its members (inline objects become synthetic subclasses), each one generalized to it */
   const buildAbstract = (c: Classifier) => {
     const key = c.schema.oneOf ? "oneOf" : "anyOf";
-    const members = alternativesOf(c.schema)!.map((a, i) =>
+    // an abstract class always has alternatives: its kind comes from them
+    const members = (alternativesOf(c.schema) ?? []).map((a, i) =>
       isRef(a) ? follow(resolve(a.$ref, c.file).id) : syntheticAlternative(c, key, i, a)
     );
     c.members = Array.from(new Set(members.filter((id): id is DefId => !!id)));
@@ -465,11 +463,30 @@ export function buildSchemaModel(bundle: SchemaBundle): SchemaModel {
       const target = follow(resolveRef(root.$ref, bundle.root, files, quiet).id);
       if (target && classifiers.has(target)) return target;
     }
-    const rootId = `${bundle.root}#`;
+    const rootId = makeDefId(bundle.root, "");
     if (isDrawable(classifiers.get(rootId))) return rootId;
     const all = Array.from(classifiers.values());
     return (all.find((c) => c.file === bundle.root && isDrawable(c)) ?? all.find((c) => isDrawable(c)) ?? all[0])?.id;
   }
+}
+
+/**
+ * Classifier of `id` in the model. Every id found in a model (relations, members, focus…) has one,
+ * so a missing one is a bug: reported with a clear message.
+ */
+export function getClassifier(model: SchemaModel, id: DefId): Classifier {
+  const c = model.classifiers.get(id);
+  if (!c) throw new Error(`Unknown definition: ${id}`);
+  return c;
+}
+
+/**
+ * Relations to `id` from another class: the "used by" of the top bar and the left side of the diagram.
+ * A class is used through relations; an enumeration, a codelist or a data type through «use» dependencies.
+ */
+export function incomingRelations(model: SchemaModel, id: DefId): Relation[] {
+  const relations = isDrawable(model.classifiers.get(id)) ? model.relations : model.usages;
+  return relations.filter((r) => referencedOf(r) === id && referrerOf(r) !== id && isDrawable(model.classifiers.get(referrerOf(r))));
 }
 
 /** Class or abstract class that "refers" in a relation (left → right in the diagram) */
@@ -485,7 +502,7 @@ export function findDefinition(model: SchemaModel, ref: string): DefId | undefin
   try {
     const hash = ref.indexOf("#");
     const url = new URL(hash < 0 ? ref : ref.slice(0, hash), model.root).href;
-    id = `${url}#${hash < 0 ? "" : decodeURIComponent(ref.slice(hash + 1))}`;
+    id = makeDefId(url, hash < 0 ? "" : decodeURIComponent(ref.slice(hash + 1)));
   } catch {
     return undefined;
   }

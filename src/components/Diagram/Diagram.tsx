@@ -3,11 +3,12 @@ import { useCallback, useEffect, useId, useMemo, useState, type ReactNode } from
 import { Background, Controls, getViewportForBounds, ReactFlow, type EdgeTypes, type NodeTypes, type Viewport } from "@xyflow/react";
 import { useElementSize } from "../../hooks/useElementSize";
 import type { FocusGraph } from "../../types/graph";
+import { toMessage } from "../../utils/errors";
 import { highlightCss, highlightedEdges, type Hover } from "../../utils/edgeHighlight";
 import { buildFocusGraph } from "../../utils/focusGraph";
 import { edgeMarkers } from "../../utils/markers";
 import { fileName } from "../../utils/refs";
-import { isDrawable, referencedOf, referrerOf } from "../../utils/schemaModel";
+import { getClassifier, incomingRelations, referrerOf } from "../../utils/schemaModel";
 import type { ClassifierKind, DefId, SchemaModel } from "../../types/schema";
 import UmlEdge, { type UmlFlowEdge } from "../UmlEdge";
 import UmlMarkers from "../UmlMarkers";
@@ -61,7 +62,7 @@ export default function Diagram({ model, focus, onSelect, neighbourDetails = fal
     let cancelled = false;
     buildFocusGraph(model, focus, { neighbourDetails: details, constraints: showConstraints, enumerations: showEnums }).then(
       (g) => !cancelled && setGraph({ key, model, graph: g }),
-      (e) => !cancelled && setGraphError({ key, message: e instanceof Error ? e.message : String(e) })
+      (e) => !cancelled && setGraphError({ key, message: toMessage(e) })
     );
     return () => {
       cancelled = true;
@@ -73,15 +74,11 @@ export default function Diagram({ model, focus, onSelect, neighbourDetails = fal
   const error = graphError?.key === key ? graphError.message : undefined;
   // the top bar describes the diagram on screen
   const shown = error || !current ? focus : current.graph.focus;
-  const classifier = model.classifiers.get(shown)!;
+  const classifier = getClassifier(model, shown);
 
   const usedBy = useMemo(
     () =>
-      new Set(
-        (isDrawable(model.classifiers.get(shown)) ? model.relations : model.usages)
-          .filter((r) => referencedOf(r) === shown && isDrawable(model.classifiers.get(referrerOf(r))))
-          .map(referrerOf)
-      ).size,
+      new Set(incomingRelations(model, shown).map(referrerOf)).size,
     [model, shown]
   );
 

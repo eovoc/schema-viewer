@@ -8,7 +8,8 @@ import type { ELK as ElkEngine, ElkNode, ElkPort } from "elkjs/lib/elk-api";
 import type { Classifier, DefId, Relation, RelationKind, SchemaModel } from "../types/schema";
 import type { FocusGraph, GraphEdge, GraphNode, ListItem, RowData, UmlNodeData } from "../types/graph";
 import { BODY_PAD, EMPTY_BODY_H, HEADER_BORDER, headerHeight, nodeBorder, ROW_H } from "./constants";
-import { isDrawable, isInheritance, referencedOf, referrerOf } from "./schemaModel";
+import { attributeHandle, HANDLE, portId } from "./handles";
+import { getClassifier, incomingRelations, isDrawable, isInheritance, referencedOf, referrerOf } from "./schemaModel";
 import { measureText, type MeasureText } from "./textMeasure";
 
 /** Font sizes (px) used to measure the texts: must match .uml-node and .uml-stereotype in styles/node.css */
@@ -82,7 +83,7 @@ function rowsFor(c: Classifier, list: ListItem[], full: boolean, constraints: bo
   switch (c.kind) {
     case "class": {
       const rows: RowData[] = c.attributes.map((a) => ({
-        id: `a:${a.name}`,
+        id: attributeHandle(a.name),
         name: a.name,
         type: a.type,
         value: a.value,
@@ -180,8 +181,7 @@ const getElk = () => (elk ??= import("elkjs/lib/elk.bundled.js").then((m) => new
 
 export async function buildFocusGraph(model: SchemaModel, focus: DefId, options: FocusGraphOptions = {}): Promise<FocusGraph> {
   const { neighbourDetails = false, constraints = true, enumerations = true, maxPerSide = 30, measure = measureText } = options;
-  const focusClassifier = model.classifiers.get(focus);
-  if (!focusClassifier) throw new Error(`Unknown definition: ${focus}`);
+  const focusClassifier = getClassifier(model, focus);
 
   const nodes = new Map<string, GraphNode>();
   const edges: GraphEdge[] = [];
@@ -196,8 +196,7 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
       ...model.usages.filter((r) => r.source === focus && r.target !== focus && model.classifiers.get(r.target)?.kind === "enumeration")
     );
   }
-  const incoming = isDrawable(focusClassifier) ? model.relations : model.usages;
-  const inRels = incoming.filter((r) => referencedOf(r) === focus && drawable(referrerOf(r)));
+  const inRels = incomingRelations(model, focus);
   const generalized = new Set<DefId>([
     ...outRels.filter((r) => isInheritance(r.kind)).map(referencedOf),
     ...inRels.filter((r) => isInheritance(r.kind)).map(referrerOf),
@@ -205,7 +204,7 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
   const outGroups = groupRelations(outRels, referencedOf, generalized);
   const inGroups = groupRelations(inRels, referrerOf, generalized);
 
-  const byName = (a: Group, b: Group) => model.classifiers.get(a.neighbour)!.name.localeCompare(model.classifiers.get(b.neighbour)!.name);
+  const byName = (a: Group, b: Group) => getClassifier(model, a.neighbour).name.localeCompare(getClassifier(model, b.neighbour).name);
   const hidden = { left: 0, right: 0 };
   /**
    * Keeps the first neighbours of one side. Beyond `maxPerSide`, the last place goes to a "+N more" box
@@ -227,20 +226,20 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
   outGroups.sort((a, b) => rowIndex(a) - rowIndex(b) || byName(a, b));
   const right = keepFirstNeighbours(outGroups, "right");
   right.forEach((g) => {
-    if (!nodes.has(g.neighbour)) nodes.set(g.neighbour, node(model.classifiers.get(g.neighbour)!, false, neighbourDetails));
+    if (!nodes.has(g.neighbour)) nodes.set(g.neighbour, node(getClassifier(model, g.neighbour), false, neighbourDetails));
     if (!isInheritance(g.kind)) {
       g.roles.forEach((role) => {
         const attr = focusClassifier.attributes.find((a) => a.name === role);
         // a row typed by an enumeration has no port of its own (not a class): give it one for the «use» edge
-        const row = nodes.get(focus)!.data.rows.find((r) => r.id === `a:${role}`);
+        const row = nodes.get(focus)!.data.rows.find((r) => r.id === attributeHandle(role));
         if (row) row.port = true;
         edges.push({
           id: `out:${role}->${g.neighbour}`,
           kind: g.kind,
           source: focus,
-          sourceHandle: `a:${role}`,
+          sourceHandle: attributeHandle(role),
           target: g.neighbour,
-          targetHandle: "in",
+          targetHandle: HANDLE.in,
           label: role,
           multiplicity: attr?.multiplicity ?? "1",
           labelAt: "target",
@@ -253,9 +252,9 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
         id: `gen:${focus}->${g.neighbour}`,
         kind: g.kind,
         source: focus,
-        sourceHandle: "out",
+        sourceHandle: HANDLE.out,
         target: g.neighbour,
-        targetHandle: "in",
+        targetHandle: HANDLE.in,
         labelAt: "target",
         triangleAtSource: true,
         layout: true,
@@ -264,7 +263,7 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
   });
   combineLabels(edges.filter((e) => e.source === focus && e.labelAt === "target" && e.label));
   if (nodes.has("more:right")) {
-    edges.push({ id: "more:right", kind: "association", source: focus, sourceHandle: "out", target: "more:right", targetHandle: "in", labelAt: "target", triangleAtSource: false, layout: true });
+    edges.push({ id: "more:right", kind: "association", source: focus, sourceHandle: HANDLE.out, target: "more:right", targetHandle: HANDLE.in, labelAt: "target", triangleAtSource: false, layout: true });
   }
 
   // Left: what references the focus (a neighbour already on the right gives a "back" edge)
@@ -274,22 +273,22 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
   const left = keepFirstNeighbours(leftGroups, "left");
   const back = inGroups.filter((g) => onRight.has(g.neighbour));
   left.forEach((g) => {
-    const neighbour = model.classifiers.get(g.neighbour)!;
+    const neighbour = getClassifier(model, g.neighbour);
     if (!nodes.has(g.neighbour)) nodes.set(g.neighbour, node(neighbour, false, neighbourDetails));
     const label = g.roles.length ? g.roles.join(", ") : undefined;
     if (!isInheritance(g.kind) && neighbourDetails) {
       const neighbourNode = nodes.get(g.neighbour)!;
       g.roles.forEach((role) => {
         // the attribute row becomes a port, even when its type is not a class (codelist view)
-        const row = neighbourNode.data.rows.find((r) => r.id === `a:${role}`);
+        const row = neighbourNode.data.rows.find((r) => r.id === attributeHandle(role));
         if (row) row.port = true;
         edges.push({
           id: `in:${g.kind}:${g.neighbour}.${role}`,
           kind: g.kind,
           source: g.neighbour,
-          sourceHandle: row ? `a:${role}` : "out",
+          sourceHandle: row ? attributeHandle(role) : HANDLE.out,
           target: focus,
-          targetHandle: "in",
+          targetHandle: HANDLE.in,
           label: role,
           multiplicity: neighbour.attributes.find((a) => a.name === role)?.multiplicity ?? "1",
           // next to the attribute row: one row per edge, so the labels never overlap
@@ -303,9 +302,9 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
         id: `in:${g.kind}:${g.neighbour}`,
         kind: g.kind,
         source: g.neighbour,
-        sourceHandle: "out",
+        sourceHandle: HANDLE.out,
         target: focus,
-        targetHandle: "in",
+        targetHandle: HANDLE.in,
         label: isInheritance(g.kind) ? undefined : label,
         multiplicity: isInheritance(g.kind) ? undefined : g.multiplicity,
         labelAt: "source",
@@ -315,16 +314,16 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
     }
   });
   if (nodes.has("more:left")) {
-    edges.push({ id: "more:left", kind: "association", source: "more:left", sourceHandle: "out", target: focus, targetHandle: "in", labelAt: "source", triangleAtSource: false, layout: true });
+    edges.push({ id: "more:left", kind: "association", source: "more:left", sourceHandle: HANDLE.out, target: focus, targetHandle: HANDLE.in, labelAt: "source", triangleAtSource: false, layout: true });
   }
   back.forEach((g) =>
     edges.push({
       id: `back:${g.kind}:${g.neighbour}`,
       kind: g.kind,
       source: g.neighbour,
-      sourceHandle: "out-l",
+      sourceHandle: HANDLE.outLeft,
       target: focus,
-      targetHandle: "in-r",
+      targetHandle: HANDLE.inRight,
       label: !isInheritance(g.kind) && g.roles.length ? g.roles.join(", ") : undefined,
       multiplicity: isInheritance(g.kind) ? undefined : g.multiplicity,
       labelAt: "source",
@@ -338,8 +337,8 @@ export async function buildFocusGraph(model: SchemaModel, focus: DefId, options:
   edges
     .filter((e) => e.layout) // back edges use the out-l / in-r handles, outside the ELK layout
     .forEach((e) => {
-      if (!portIds.has(`${e.source}::${e.sourceHandle}`)) e.sourceHandle = "out";
-      if (!portIds.has(`${e.target}::${e.targetHandle}`)) e.targetHandle = "in";
+      if (!portIds.has(portId(e.source, e.sourceHandle))) e.sourceHandle = HANDLE.out;
+      if (!portIds.has(portId(e.target, e.targetHandle))) e.targetHandle = HANDLE.in;
     });
 
   await layout(Array.from(nodes.values()), edges);
@@ -369,13 +368,13 @@ function ports(n: GraphNode): ElkPort[] {
   const b = nodeBorder(n.data.isFocus);
   const h = headerHeight(n.data.stereotype);
   const list: ElkPort[] = [
-    { id: `${n.id}::in`, x: 0, y: b + h / 2, width: 1, height: 1, layoutOptions: { "elk.port.side": "WEST" } },
-    { id: `${n.id}::out`, x: n.width, y: b + h / 2, width: 1, height: 1, layoutOptions: { "elk.port.side": "EAST" } },
+    { id: portId(n.id, HANDLE.in), x: 0, y: b + h / 2, width: 1, height: 1, layoutOptions: { "elk.port.side": "WEST" } },
+    { id: portId(n.id, HANDLE.out), x: n.width, y: b + h / 2, width: 1, height: 1, layoutOptions: { "elk.port.side": "EAST" } },
   ];
   n.data.rows.forEach((r, i) => {
     if (r.port) {
       list.push({
-        id: `${n.id}::${r.id}`,
+        id: portId(n.id, r.id),
         x: n.width,
         y: b + h + HEADER_BORDER + BODY_PAD + i * ROW_H + ROW_H / 2,
         width: 1,
@@ -419,7 +418,7 @@ async function layout(nodes: GraphNode[], edges: GraphEdge[]): Promise<void> {
     })),
     edges: edges
       .filter((e) => e.layout)
-      .map((e) => ({ id: e.id, sources: [`${e.source}::${e.sourceHandle}`], targets: [`${e.target}::${e.targetHandle}`] })),
+      .map((e) => ({ id: e.id, sources: [portId(e.source, e.sourceHandle)], targets: [portId(e.target, e.targetHandle)] })),
   };
   const result = await (await getElk()).layout(graph);
   const pos = new Map((result.children ?? []).map((c) => [c.id, c]));

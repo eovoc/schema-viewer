@@ -5,6 +5,7 @@
 //   "https://host/x.json#/…"      absolute: loaded as is
 //   "http://json-schema.org/…"    JSON Schema meta-schemas: never loaded
 import type { JsonSchema, LoadError, SchemaBundle } from "../types/schema";
+import { toMessage } from "../utils/errors";
 import { collectRefs, fileName, referencedDocument } from "../utils/refs";
 
 export type FetchSchema = (url: string, signal?: AbortSignal) => Promise<JsonSchema>;
@@ -95,7 +96,7 @@ async function loadLevel(level: string[], state: LoadState, fetchSchema: FetchSc
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
   results.forEach((r, i) => {
     if (r.status === "fulfilled") state.documents[next[i].url] = r.value;
-    else state.errors.push({ ...next[i], message: r.reason instanceof Error ? r.reason.message : String(r.reason) });
+    else state.errors.push({ ...next[i], message: toMessage(r.reason) });
   });
   const loaded = next.map((n) => n.url).filter((url) => url in state.documents);
   if (loaded.length) await loadLevel(loaded, state, fetchSchema, signal);
@@ -116,7 +117,7 @@ export async function loadSchemaBundle(rootUrl: string, options: LoadOptions = {
   try {
     state.documents[root] = await fetchSchema(root, signal);
   } catch (e) {
-    throw new Error(`${fileName(root)}: ${e instanceof Error ? e.message : e}`, { cause: e });
+    throw new Error(`${fileName(root)}: ${toMessage(e)}`, { cause: e });
   }
   await loadLevel([root], state, fetchSchema, signal);
 

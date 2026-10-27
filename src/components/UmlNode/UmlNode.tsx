@@ -3,6 +3,7 @@
 import { memo, useState, type CSSProperties } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { ListItem, RowData, UmlNodeData } from "../../types/graph";
+import { HANDLE } from "../../utils/handles";
 import { BODY_PAD, EMPTY_BODY_H, HEADER_BORDER, headerHeight, nodeBorder, ROW_H } from "../../utils/constants";
 
 export type UmlFlowNodeData = UmlNodeData & {
@@ -131,10 +132,10 @@ function UmlNode({ id, data }: Readonly<NodeProps<UmlFlowNode>>) {
       style={sizes(data.isFocus)}
       title={data.comment}
     >
-      <Handle type="target" position={Position.Left} id="in" className="uml-handle" style={headerHandle} isConnectable={false} />
-      <Handle type="source" position={Position.Right} id="out" className="uml-handle" style={headerHandle} isConnectable={false} />
-      <Handle type="source" position={Position.Left} id="out-l" className="uml-handle" style={headerHandle} isConnectable={false} />
-      <Handle type="target" position={Position.Right} id="in-r" className="uml-handle" style={headerHandle} isConnectable={false} />
+      <Handle type="target" position={Position.Left} id={HANDLE.in} className="uml-handle" style={headerHandle} isConnectable={false} />
+      <Handle type="source" position={Position.Right} id={HANDLE.out} className="uml-handle" style={headerHandle} isConnectable={false} />
+      <Handle type="source" position={Position.Left} id={HANDLE.outLeft} className="uml-handle" style={headerHandle} isConnectable={false} />
+      <Handle type="target" position={Position.Right} id={HANDLE.inRight} className="uml-handle" style={headerHandle} isConnectable={false} />
       {/* the "+N more" box is a header only */}
       <div className="uml-header" style={{ height: data.kind === "more" ? "100%" : headerHeight(data.stereotype) }}>
         {data.stereotype && <div className="uml-stereotype">{data.stereotype}</div>}
