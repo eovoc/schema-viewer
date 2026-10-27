@@ -178,34 +178,57 @@ Written for draft-07 schemas (`definitions`); `$defs` and `$anchor` are read too
 
 ## Project layout
 
+The folders follow the usual React layout (components, hooks, services, utils, types, styles).
+`components/` and `hooks/` use React; `services/`, `utils/` and `types/` are plain TypeScript, with no React.
+Inside `src/`, files import each other by relative path, never through `index.ts` or the package name.
+
 ```
-src/                      the component
-  index.ts                what the package exports
-  SchemaViewer.tsx        <SchemaViewer>: loading, selection, table of contents + diagram
-  styles.css              styles, scoped under .schema-viewer
-  lib.ts                  entry of the library build (exports + stylesheet)
-  core/                   reads and interprets the schemas (plain TypeScript, no React)
-    loader.ts             loads a schema and the schemas it references, resolves $ref
-    schemaModel.ts        JSON Schema -> UML model (classes, attributes, relations)
-    focusGraph.ts         diagram of one definition: boxes, edges, ELK layout
-    types.ts              shared types
-  ui/                     React components that display the result
-    Toc.tsx               table of contents
-    Diagram.tsx           the diagram: top bar, React Flow canvas, hover highlight, legend
-    UmlNode.tsx           a UML class box
-    UmlEdge.tsx           a UML edge and its markers (arrow, triangle, diamonds)
-demo/                     demo page (uses the component like another application would)
-  index.html              HTML entry point
-  main.tsx                starts React
-  SchemaViewerPage.tsx    navigation bar, schema URL field, <SchemaViewer>, URL of the page
-  demo.css                styles of the page
-package.json              dependencies, npm scripts, what the package exports
-vite.config.ts            Vite configuration of the demo
-vite.lib.config.ts        Vite configuration of the component build (dist/)
-tsconfig.json             TypeScript configuration
-tsconfig.lib.json         generation of the type declarations (dist/*.d.ts)
-LICENSE                   Apache 2.0 licence
-NOTICE                    copyright notice (Apache 2.0)
+src/                          the component
+  index.ts                    what the package exports
+  lib.ts                      entry of the library build (exports + stylesheet)
+  components/                 React components, one folder each (Name.tsx + index.ts)
+    SchemaViewer/             <SchemaViewer>: selection, table of contents + diagram
+    Toc/                      table of contents
+    Diagram/                  the diagram: top bar, React Flow canvas, JSON and warnings panels
+    Legend/                   legend of the relation kinds
+    UmlNode/                  a UML class box
+    UmlEdge/                  a UML edge: route, role and multiplicity
+    UmlMarkers/               SVG markers of the edges (arrow, triangle, diamonds)
+  hooks/
+    useSchemaModel.ts         loads a schema and builds its UML model
+    useElementSize.ts         size of an element (ResizeObserver)
+  services/
+    schemaLoader.ts           loads a schema and the schemas it references
+  utils/
+    refs.ts                   $ref: resolution, file names
+    jsonPointer.ts            JSON Pointers
+    schemaModel.ts            JSON Schema -> UML model (classes, attributes, relations)
+    focusGraph.ts             diagram of one definition: boxes, edges, ELK layout
+    constants.ts              dimensions of the boxes, shared by the layout and the CSS
+    textMeasure.ts            text width, to size the boxes
+    markers.ts                which marker each relation kind uses
+    edgeHighlight.ts          edges and CSS to highlight on hover
+  types/
+    schema.ts                 loaded schemas and UML model
+    graph.ts                  boxes and edges of a diagram
+  styles/
+    index.css                 stylesheet entry (React Flow styles + the files below), scoped under .schema-viewer
+    base.css                  CSS variables (colours, sizes) and layout of the viewer
+    toc.css  diagram.css  node.css  edge.css
+demo/                         demo page (uses the component like another application would)
+  index.html                  HTML entry point
+  main.tsx                    starts React
+  pages/SchemaViewerPage/     schema URL field, <SchemaViewer>
+  components/Navbar/          navigation bar
+  utils/addressBar.ts         page state in the address bar (?schema=…&def=…)
+  styles/demo.css             styles of the page
+package.json                  dependencies, npm scripts, what the package exports
+vite.config.ts                Vite configuration of the demo
+vite.lib.config.ts            Vite configuration of the component build (dist/)
+tsconfig.json                 TypeScript configuration
+tsconfig.lib.json             generation of the type declarations (dist/*.d.ts)
+LICENSE                       Apache 2.0 licence
+NOTICE                        copyright notice (Apache 2.0)
 ```
 
 ## Licence

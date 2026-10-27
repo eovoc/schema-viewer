@@ -102,7 +102,7 @@ function Literals({ rows, all, unit }: Readonly<{ rows: RowData[]; all: ListItem
   );
 }
 
-/** Dimensions used by the layout (utils/constants.ts), given to styles.css: the boxes are drawn exactly as ELK placed them */
+/** Dimensions used by the layout (utils/constants.ts), given to the CSS (styles/node.css): the boxes are drawn exactly as ELK placed them */
 const sizes = (isFocus: boolean) =>
   ({
     "--uml-border-width": `${nodeBorder(isFocus)}px`,

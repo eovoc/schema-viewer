@@ -27,7 +27,7 @@ export interface SchemaBundle {
 }
 
 // ---------------------------------------------------------------------------
-// UML model (built by schemaModel.ts)
+// UML model (built by utils/schemaModel.ts)
 
 /** Id of a definition: "<document URL>#<JSON Pointer>", e.g. "https://…/mdj.json#/definitions/MD_Metadata" */
 export type DefId = string;

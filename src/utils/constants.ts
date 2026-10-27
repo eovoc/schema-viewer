@@ -1,5 +1,5 @@
 // Dimensions of a box, in px. ELK needs them to place the boxes and the ports of the attribute rows before anything
-// is drawn, so they are defined here only: UmlNode passes them to styles.css as CSS variables (--uml-row-h…).
+// is drawn, so they are defined here only: UmlNode passes them to styles/node.css as CSS variables (--uml-row-h…).
 export const ROW_H = 18;
 export const BODY_PAD = 5;
 export const EMPTY_BODY_H = 10;

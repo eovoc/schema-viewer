@@ -77,7 +77,7 @@ export function resolveRef(ref: string, from: string, documents: Record<string, 
   }
   if (/^https?:\/\/json-schema\.org\//.test(url)) return { label: "JSONSchema" };
   const doc = documents[url];
-  if (!doc) return { label: ref }; // document not loaded: already reported by the loader
+  if (!doc) return { label: ref }; // document not loaded: already reported by loadSchemaBundle
 
   if (fragment === "" || fragment === "/") return { id: `${url}#`, label: fileName(url) };
   let pointer = fragment;

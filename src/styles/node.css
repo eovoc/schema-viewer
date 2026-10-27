@@ -1,6 +1,6 @@
 /* ---- UML class ----
    Dimensions (borders, padding, row height): CSS variables set on each box by UmlNode.tsx from utils/constants.ts;
-   focusGraph.ts places the boxes and the edges with the same values. Do not write them here.
+   utils/focusGraph.ts places the boxes and the edges with the same values. Do not write them here.
    They are declared below without a value, so that the reader (and the IDE) knows where they come from. */
 @property --uml-border-width { syntax: "*"; inherits: true; }
 @property --uml-header-border-width { syntax: "*"; inherits: true; }
