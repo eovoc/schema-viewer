@@ -1,13 +1,18 @@
 // UML diagram of one definition: top bar, React Flow canvas, JSON and warnings panels, legend.
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import { Background, Controls, getViewportForBounds, ReactFlow, type EdgeTypes, type NodeTypes, type Viewport } from "@xyflow/react";
-import { buildFocusGraph, type FocusGraph } from "../core/focusGraph";
-import { fileName } from "../core/loader";
-import { referencedOf, referrerOf } from "../core/schemaModel";
-import type { DefId, RelationKind, SchemaModel } from "../core/types";
-import { isDrawable } from "../core/types";
-import UmlEdge, { edgeMarkers, UmlMarkers, type UmlFlowEdge } from "./UmlEdge";
-import UmlNode, { type UmlFlowNode } from "./UmlNode";
+import { useElementSize } from "../../hooks/useElementSize";
+import type { FocusGraph } from "../../types/graph";
+import { highlightCss, highlightedEdges, type Hover } from "../../utils/edgeHighlight";
+import { buildFocusGraph } from "../../utils/focusGraph";
+import { edgeMarkers } from "../../utils/markers";
+import { fileName } from "../../utils/refs";
+import { isDrawable, referencedOf, referrerOf } from "../../utils/schemaModel";
+import type { DefId, SchemaModel } from "../../types/schema";
+import UmlEdge, { type UmlFlowEdge } from "../UmlEdge";
+import UmlMarkers from "../UmlMarkers";
+import UmlNode, { type UmlFlowNode } from "../UmlNode";
+import Legend from "../Legend";
 
 const nodeTypes: NodeTypes = { uml: UmlNode };
 const FIT = { padding: 0.12, minZoom: 0.1, maxZoom: 1.1 };
@@ -123,18 +128,7 @@ export default function Diagram({ model, focus, onSelect, neighbourDetails = fal
   // Size of the drawing area, to fit the diagram before its first frame. With React Flow's own `fitView`,
   // the new diagram is drawn once unscaled at (0, 0), then fitted: a visible flash.
   // React Flow reads `defaultViewport` only when a diagram appears: resizing the window later does not move it.
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
-  useEffect(() => {
-    const el = canvasRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect;
-      setSize((s) => (s?.width === width && s?.height === height ? s : { width, height }));
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+  const [canvasRef, size] = useElementSize<HTMLDivElement>();
   const fit = useMemo<{ viewport: Viewport; padding: number } | undefined>(() => {
     if (!current || !size || !current.graph.nodes.length) return undefined;
     const ns = current.graph.nodes;
@@ -249,99 +243,6 @@ export default function Diagram({ model, focus, onSelect, neighbourDetails = fal
         )}
       </div>
       <Legend hint="Click a class or an underlined type to navigate" />
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Hover highlight. Only CSS changes: nodes are never re-rendered on hover, otherwise React Flow
-// re-observes them ("ResizeObserver loop completed with undelivered notifications").
-
-type Hover = { node: string; row?: string } | { edge: string };
-
-/**
- * Edges to highlight for what is under the pointer:
- * - one edge: that edge;
- * - an attribute row: the link(s) leaving that row only;
- * - the focus class itself: nothing (otherwise every link of the diagram lights up);
- * - a neighbour class: its links to the focus.
- */
-function highlightedEdges(g: FocusGraph, h: Hover): FocusGraph["edges"] {
-  if ("edge" in h) return g.edges.filter((e) => e.id === h.edge);
-  if (h.row) return g.edges.filter((e) => e.source === h.node && e.sourceHandle === h.row);
-  if (h.node === g.focus) return [];
-  return g.edges.filter((e) => e.source === h.node || e.target === h.node);
-}
-
-/** Replacement string: the matched character preceded by a backslash */
-const ESCAPED_MATCH = String.raw`\$&`;
-/** Quoted CSS attribute value: `"` and `\` escaped */
-const attr = (value: string) => `"${value.replace(/["\\]/g, ESCAPED_MATCH)}"`;
-
-/** `scope`: value of the viewer's `data-schema-viewer` attribute, so that several viewers on one page do not interfere */
-function highlightCss(edges: FocusGraph["edges"], scope: string): string {
-  const root = `[data-schema-viewer=${attr(scope)}]`;
-  const nodes = new Set<string>();
-  const rules: string[] = [];
-  edges.forEach((e) => {
-    nodes.add(e.source);
-    nodes.add(e.target);
-    const path = `${root} .react-flow__edge[data-id=${attr(e.id)}] .react-flow__edge-path`;
-    const m = edgeMarkers(e.kind, e.triangleAtSource, true);
-    const markerStart = m.start ? `marker-start: url(#${m.start});` : "";
-    const markerEnd = m.end ? `marker-end: url(#${m.end});` : "";
-    const markers = markerStart + markerEnd;
-    rules.push(`${path} { stroke: var(--uml-accent); stroke-width: 1.8; ${markers} }`);
-    if (e.sourceHandle.startsWith("a:")) {
-      rules.push(`${root} .react-flow__node[data-id=${attr(e.source)}] .uml-row[data-row=${attr(e.sourceHandle)}] { background: var(--uml-accent-soft); }`);
-    }
-  });
-  nodes.forEach((id) => rules.push(`${root} .react-flow__node[data-id=${attr(id)}] .uml-node { border-color: var(--uml-accent); }`));
-  return rules.join("\n");
-}
-
-// ---------------------------------------------------------------------------
-// Legend of the six UML relation kinds, drawn with the same markers as the diagram
-
-const LEGEND: { kind: RelationKind; label: string; title: string }[] = [
-  { kind: "association", label: "association", title: "$ref property to a class" },
-  { kind: "aggregation", label: "aggregation", title: "Array of $ref property (convention: JSON Schema does not distinguish aggregation from association)" },
-  { kind: "composition", label: "composition", title: 'Nested object property ("Parent.property" class)' },
-  { kind: "generalization", label: "generalization", title: "oneOf/anyOf of classes (abstract class) or allOf with $ref" },
-  { kind: "realization", label: "realization", title: "No JSON Schema rule produces it yet" },
-  { kind: "dependency", label: "dependency «use»", title: "Use of an enumeration (\"Enumerations\" box), codelist or data type (shown in its own view)" },
-];
-
-function LegendLine({ kind }: Readonly<{ kind: RelationKind }>) {
-  // in the legend, inheritance is drawn from the subclass (left) to the parent (right)
-  const m = edgeMarkers(kind, false);
-  const dashed = kind === "dependency" || kind === "realization";
-  return (
-    <svg width="40" height="14" aria-hidden="true" className="uml-legend__line">
-      <line
-        x1="2"
-        y1="7"
-        x2="37"
-        y2="7"
-        style={{ stroke: "var(--uml-edge)" }}
-        strokeWidth="1.3"
-        strokeDasharray={dashed ? "5 3" : undefined}
-        markerStart={m.start ? `url(#${m.start})` : undefined}
-        markerEnd={m.end ? `url(#${m.end})` : undefined}
-      />
-    </svg>
-  );
-}
-
-function Legend({ hint }: Readonly<{ hint?: string }>) {
-  return (
-    <div className="uml-legend">
-      {LEGEND.map((l) => (
-        <span key={l.kind} title={l.title}>
-          <LegendLine kind={l.kind} /> {l.label}
-        </span>
-      ))}
-      {hint && <span className="uml-legend__hint">{hint}</span>}
     </div>
   );
 }

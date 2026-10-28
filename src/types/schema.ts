@@ -1,5 +1,5 @@
 // Types of the loaded schemas (SchemaBundle) and of the UML model (SchemaModel),
-// shared by core/ and ui/, and exported by the package (index.ts).
+// used across the package and exported by it (index.ts). Types only: no code.
 
 /** A JSON Schema document or sub-schema (any JSON object) */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -27,7 +27,7 @@ export interface SchemaBundle {
 }
 
 // ---------------------------------------------------------------------------
-// UML model (built by schemaModel.ts)
+// UML model (built by utils/schemaModel.ts)
 
 /** Id of a definition: "<document URL>#<JSON Pointer>", e.g. "https://…/mdj.json#/definitions/MD_Metadata" */
 export type DefId = string;
@@ -43,9 +43,7 @@ export type DefId = string;
 export type ClassifierKind = "class" | "abstract" | "enumeration" | "codelist" | "datatype" | "alias";
 
 /** UML relations. Association, aggregation, composition and dependency go from the owner to the type; inheritance from the subclass to the parent */
-export type RelationKind = "association" | "aggregation" | "composition" | "generalization" | "realization" | "dependency";
-
-export const isInheritance = (k: RelationKind) => k === "generalization" || k === "realization";
+export type RelationKind = "association" | "aggregation" | "composition" | "generalization" | "dependency";
 
 export interface Attribute {
   name: string;
@@ -112,6 +110,3 @@ export interface SchemaModel {
   /** Definition shown first: target of the root $ref, else the root class, else the first class */
   defaultDefinition?: DefId;
 }
-
-/** Only classes and abstract classes are drawn as neighbours in a diagram */
-export const isDrawable = (c: Classifier | undefined): boolean => !!c && (c.kind === "class" || c.kind === "abstract");

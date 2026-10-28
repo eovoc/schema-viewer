@@ -35,7 +35,7 @@ export default defineConfig({
   resolve: {
     // the demo imports the package by its name, like another application would, but from the sources
     alias: [
-      { find: "@eovoc/schema-viewer/style.css", replacement: src("styles.css") },
+      { find: "@eovoc/schema-viewer/style.css", replacement: src("styles/index.css") },
       { find: /^@eovoc\/schema-viewer$/, replacement: src("index.ts") },
     ],
   },

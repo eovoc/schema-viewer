@@ -1,0 +1,74 @@
+/* ---- Main area ---- */
+.uml-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--uml-surface);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+.uml-focusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--uml-line);
+  font-size: 0.85rem;
+}
+.uml-focusbar__title { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.uml-focusbar__title strong { font-size: 1rem; }
+.uml-focusbar__actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.uml-focusbar__actions button {
+  padding: 4px 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.uml-focusbar__actions button[aria-pressed="true"] { border-color: var(--uml-accent); color: var(--uml-accent); }
+.uml-diag-button { color: #b45309; }
+.uml-badge { padding: 1px 8px; border-radius: 10px; background: #eef1f4; font-size: 0.75rem; }
+.uml-badge--file { background: transparent; border: 1px solid var(--uml-line); color: var(--uml-muted); }
+.uml-meta { color: var(--uml-muted); }
+.uml-meta--comment { font-style: italic; max-width: 40ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.uml-link-button { padding: 0; border: 0; background: none; font: inherit; color: var(--uml-type); text-decoration: underline; cursor: pointer; }
+
+.uml-canvas { position: relative; flex: 1; min-height: 0; }
+.uml-markers { position: absolute; width: 0; height: 0; }
+.uml-panel {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  bottom: 10px;
+  width: min(420px, 45%);
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  background: #fbfcfd;
+  border: 1px solid var(--uml-line);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  z-index: 5;
+}
+.uml-panel h3 { margin: 0 0 8px; font-size: 0.85rem; }
+.uml-panel ul { margin: 0; padding-left: 18px; }
+.uml-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--uml-line);
+  font-size: 0.75rem;
+  color: var(--uml-muted);
+}
+.uml-legend__line { vertical-align: middle; margin-right: 2px; overflow: visible; }
+.uml-legend__hint { margin-left: auto; }
+.uml-message { padding: 24px; color: var(--uml-muted); }
+.uml-message--error { color: #b00020; }
+/* appears only after 400 ms: no flash when the diagram is quick to compute */
+.uml-message--delayed { animation: uml-appear 0s 400ms both; }
+@keyframes uml-appear { from { visibility: hidden; } to { visibility: visible; } }
