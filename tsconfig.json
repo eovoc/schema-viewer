@@ -13,8 +13,8 @@
     "noEmit": true,
     "types": ["vite/client", "node"],
     "paths": {
-      "@eovoc/schema-viewer": ["./src/index.ts"]
+      "@eovoc/schema-viewer": ["./src/lib/index.ts"]
     }
   },
-  "include": ["src", "demo", "vite.config.ts", "vite.lib.config.ts"]
+  "include": ["src", "vite.config.ts", "vite.lib.config.ts"]
 }

@@ -28,15 +28,15 @@ const elkjsSourceNotice = (): Plugin => ({
 });
 
 export default defineConfig({
-  root: "demo",
+  root: "src",
   // relative paths: the site works under https://<org>.github.io/<repo>/ as well as locally
   base: "./",
   plugins: [react(), elkjsSourceNotice()],
   resolve: {
     // the demo imports the package by its name, like another application would, but from the sources
     alias: [
-      { find: "@eovoc/schema-viewer/style.css", replacement: src("styles/index.css") },
-      { find: /^@eovoc\/schema-viewer$/, replacement: src("index.ts") },
+      { find: "@eovoc/schema-viewer/style.css", replacement: src("lib/styles/index.css") },
+      { find: /^@eovoc\/schema-viewer$/, replacement: src("lib/index.ts") },
     ],
   },
   build: {
