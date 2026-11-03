@@ -189,7 +189,7 @@ src/                          demo site (uses the component like another applica
   index.html                  HTML entry point
   App.tsx                     starts React (renders the page into <div id="root">)
   pages/SchemaViewerPage/     schema URL field, <SchemaViewer>
-  components/Navbar/          navigation bar
+  components/Navbar.tsx       navigation bar
   utils/addressBar.ts         page state in the address bar (?schema=…&def=…)
   styles/demo.css             styles of the page
   lib/                        the component
