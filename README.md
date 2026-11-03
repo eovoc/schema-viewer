@@ -186,7 +186,7 @@ package name. The site imports the component by the package name only, like anot
 ```
 src/                          demo site (uses the component like another application would)
   index.html                  HTML entry point
-  main.tsx                    starts React
+  App.tsx                     starts React (renders the page into <div id="root">)
   pages/SchemaViewerPage/     schema URL field, <SchemaViewer>
   components/Navbar/          navigation bar
   utils/addressBar.ts         page state in the address bar (?schema=…&def=…)
