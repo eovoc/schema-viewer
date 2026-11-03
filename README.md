@@ -180,8 +180,9 @@ Written for draft-07 schemas (`definitions`); `$defs` and `$anchor` are read too
 
 `src/` is the demo site; the component is in `src/lib/`. Both follow the usual React layout (components, hooks,
 services, utils, types, styles). `components/` and `hooks/` use React; `services/`, `utils/` and `types/` are plain
-TypeScript, with no React. Inside `src/lib/`, files import each other by relative path, never through `index.ts` or the
-package name. The site imports the component by the package name only, like another application would.
+TypeScript, with no React. Inside `src/lib/`, files import each other by relative path, never through
+`src/lib/index.ts` or the package name. The site imports the component by the package name only, like another
+application would.
 
 ```
 src/                          demo site (uses the component like another application would)
@@ -193,14 +194,14 @@ src/                          demo site (uses the component like another applica
   styles/demo.css             styles of the page
   lib/                        the component
     index.ts                  what the package exports (entry of the library build and of its type declarations)
-    components/               React components, one folder each (Name.tsx + index.ts)
-      SchemaViewer/           <SchemaViewer>: selection, table of contents + diagram
-      Toc/                    table of contents
-      Diagram/                the diagram: top bar, React Flow canvas, JSON and warnings panels
-      Legend/                 legend of the relation kinds
-      UmlNode/                a UML class box
-      UmlEdge/                a UML edge: route, role and multiplicity
-      UmlMarkers/             SVG markers of the edges (arrow, triangle, diamonds)
+    components/               React components, one file each
+      SchemaViewer.tsx        <SchemaViewer>: selection, table of contents + diagram
+      Toc.tsx                 table of contents
+      Diagram.tsx             the diagram: top bar, React Flow canvas, JSON and warnings panels
+      Legend.tsx              legend of the relation kinds
+      UmlNode.tsx             a UML class box
+      UmlEdge.tsx             a UML edge: route, role and multiplicity
+      UmlMarkers.tsx          SVG markers of the edges (arrow, triangle, diamonds)
     hooks/
       useSchemaModel.ts       loads a schema and builds its UML model
       useElementSize.ts       size of an element (ResizeObserver)

@@ -3,7 +3,7 @@
 //  - right : what it references (attribute types, subclasses of an abstract class);
 //  - left  : what references it ("used by"), including its parent class.
 // Edges start from the attribute row (fixed ELK ports).
-// No React / React Flow dependency: components/Diagram converts the result.
+// No React / React Flow dependency: components/Diagram.tsx converts the result.
 import type { ELK as ElkEngine, ElkNode, ElkPort } from "elkjs/lib/elk-api";
 import type { Classifier, DefId, Relation, RelationKind, SchemaModel } from "../types/schema";
 import type { FocusGraph, GraphEdge, GraphNode, ListItem, RowData, UmlNodeData } from "../types/graph";

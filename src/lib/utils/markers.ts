@@ -1,5 +1,5 @@
 // Ids of the SVG markers (arrow, triangle, diamonds) and which ones each relation kind uses.
-// The markers themselves are drawn by components/UmlMarkers; the ids are used by the edges, the legend and the hover CSS.
+// The markers themselves are drawn by components/UmlMarkers.tsx; the ids are used by the edges, the legend and the hover CSS.
 import type { RelationKind } from "../types/schema";
 
 export type MarkerShape = "arrow" | "triangle" | "diamond" | "diamondFilled";

@@ -1,18 +1,18 @@
 // UML diagram of one definition: top bar, React Flow canvas, JSON and warnings panels, legend.
 import { useCallback, useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import { Background, Controls, getViewportForBounds, ReactFlow, type EdgeTypes, type NodeTypes, type Viewport } from "@xyflow/react";
-import { useElementSize } from "../../hooks/useElementSize";
-import type { FocusGraph } from "../../types/graph";
-import { highlightCss, highlightedEdges, type Hover } from "../../utils/edgeHighlight";
-import { buildFocusGraph } from "../../utils/focusGraph";
-import { edgeMarkers } from "../../utils/markers";
-import { fileName } from "../../utils/refs";
-import { isDrawable, referencedOf, referrerOf } from "../../utils/schemaModel";
-import type { DefId, SchemaModel } from "../../types/schema";
-import UmlEdge, { type UmlFlowEdge } from "../UmlEdge";
-import UmlMarkers from "../UmlMarkers";
-import UmlNode, { type UmlFlowNode } from "../UmlNode";
-import Legend from "../Legend";
+import { useElementSize } from "../hooks/useElementSize";
+import type { FocusGraph } from "../types/graph";
+import { highlightCss, highlightedEdges, type Hover } from "../utils/edgeHighlight";
+import { buildFocusGraph } from "../utils/focusGraph";
+import { edgeMarkers } from "../utils/markers";
+import { fileName } from "../utils/refs";
+import { isDrawable, referencedOf, referrerOf } from "../utils/schemaModel";
+import type { DefId, SchemaModel } from "../types/schema";
+import UmlEdge, { type UmlFlowEdge } from "./UmlEdge";
+import UmlMarkers from "./UmlMarkers";
+import UmlNode, { type UmlFlowNode } from "./UmlNode";
+import Legend from "./Legend";
 
 const nodeTypes: NodeTypes = { uml: UmlNode };
 const FIT = { padding: 0.12, minZoom: 0.1, maxZoom: 1.1 };

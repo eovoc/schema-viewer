@@ -1,6 +1,6 @@
 // Hover highlight. Only CSS changes: nodes are never re-rendered on hover, otherwise React Flow
 // re-observes them ("ResizeObserver loop completed with undelivered notifications").
-// Used by components/Diagram: what is under the pointer -> edges to highlight -> CSS rules.
+// Used by components/Diagram.tsx: what is under the pointer -> edges to highlight -> CSS rules.
 import type { FocusGraph } from "../types/graph";
 import { edgeMarkers } from "./markers";
 

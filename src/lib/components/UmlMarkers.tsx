@@ -1,7 +1,7 @@
 // UML markers (shapes taken from uml-react), normal and highlighted (hover) variants:
 // open arrow (association, dependency), hollow triangle (generalization),
 // hollow diamond (aggregation), filled diamond (composition).
-import { markerId, type MarkerShape } from "../../utils/markers";
+import { markerId, type MarkerShape } from "../utils/markers";
 
 // Colours from the CSS variables (styles/base.css), so that changing --uml-edge or --uml-accent changes the markers too.
 // They are set with `style`: SVG presentation attributes (fill="…") do not accept var().
