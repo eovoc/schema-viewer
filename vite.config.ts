@@ -1,4 +1,4 @@
-// Demo site: `npm run dev` (development), `npm run build` -> demo-dist/ (static files, ready for GitHub Pages).
+// Demo site: `npm run dev` (development), `npm run build` -> dist/ (static files, ready for GitHub Pages).
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { appendFileSync, readFileSync } from "node:fs";
@@ -40,7 +40,7 @@ export default defineConfig({
     ],
   },
   build: {
-    outDir: "../demo-dist",
+    outDir: "../dist",
     emptyOutDir: true,
     // licences of the bundled dependencies (React, React Flow, elkjs…), published with the demo
     license: { fileName: LICENSES_FILE },

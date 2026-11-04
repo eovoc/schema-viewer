@@ -4,7 +4,7 @@
     "noEmit": false,
     "declaration": true,
     "emitDeclarationOnly": true,
-    "outDir": "dist",
+    "outDir": "lib-dist",
     "rootDir": "src/lib"
   },
   // declarations of the library only (src/lib/), not of the site

@@ -9,17 +9,17 @@
     "url": "git+https://github.com/eovoc/schema-viewer.git"
   },
   "type": "module",
-  "main": "./dist/schema-viewer.js",
-  "types": "./dist/index.d.ts",
+  "main": "./lib-dist/schema-viewer.js",
+  "types": "./lib-dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/schema-viewer.js"
+      "types": "./lib-dist/index.d.ts",
+      "import": "./lib-dist/schema-viewer.js"
     },
-    "./style.css": "./dist/style.css"
+    "./style.css": "./lib-dist/style.css"
   },
   "files": [
-    "dist",
+    "lib-dist",
     "NOTICE"
   ],
   "sideEffects": [
@@ -35,7 +35,7 @@
     "test:watch": "vitest",
     "prepare": "npm run build:lib",
     "predeploy": "npm run build:demo",
-    "deploy": "gh-pages -d demo-dist --nojekyll"
+    "deploy": "gh-pages -d dist --nojekyll"
   },
   "peerDependencies": {
     "react": ">=18",

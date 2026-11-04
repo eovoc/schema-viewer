@@ -1,4 +1,4 @@
-// Library build: `npm run build:lib` -> dist/ (schema-viewer.js, style.css; types by tsconfig.lib.json).
+// Library build: `npm run build:lib` -> lib-dist/ (schema-viewer.js, style.css; types by tsconfig.lib.json).
 // Run automatically when the package is installed from GitHub (`prepare` script).
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
@@ -18,7 +18,7 @@ const bundleStyles = (): Plugin => ({
 export default defineConfig({
   plugins: [react(), bundleStyles()],
   build: {
-    outDir: "dist",
+    outDir: "lib-dist",
     emptyOutDir: true,
     sourcemap: true,
     // readable output: the application using the package minifies it in its own build

@@ -18,7 +18,7 @@ The package is installed from GitHub (it is not published on the npm registry):
 npm install github:eovoc/schema-viewer
 ```
 
-npm downloads the repository and builds the component (`dist/`) during the installation.
+npm downloads the repository and builds the component (`lib-dist/`) during the installation.
 Requires React 18 or later in the project, and Node.js 20.19 or later.
 
 ### Display a schema
@@ -113,9 +113,9 @@ Another schema can be given in the field at the top of the page, or in the addre
 | Command | |
 |---|---|
 | `npm run dev` | demo page, reloaded on each change |
-| `npm run build` | component (`dist/`) and demo site (`demo-dist/`, static files with relative paths, ready for GitHub Pages) |
+| `npm run build` | component (`lib-dist/`) and demo site (`dist/`, static files with relative paths, ready for GitHub Pages) |
 | `npm run build:lib` | component only (run automatically by `npm install`) |
-| `npm run preview` | serves `demo-dist/` |
+| `npm run preview` | serves `dist/` |
 | `npm test` | unit tests (Vitest), once; `npm run test:watch` runs them again on each change |
 
 ## The diagram
@@ -227,9 +227,9 @@ src/                          demo site (uses the component like another applica
 tests/                        unit tests (Vitest), same folders as src/lib/
 package.json                  dependencies, npm scripts, what the package exports
 vite.config.ts                Vite configuration of the demo
-vite.lib.config.ts            Vite configuration of the component build (dist/, adds the stylesheet)
+vite.lib.config.ts            Vite configuration of the component build (lib-dist/, adds the stylesheet)
 tsconfig.json                 TypeScript configuration
-tsconfig.lib.json             generation of the type declarations (dist/*.d.ts)
+tsconfig.lib.json             generation of the type declarations (lib-dist/*.d.ts)
 vitest.config.ts              configuration of the unit tests
 LICENSE                       Apache 2.0 licence
 NOTICE                        copyright notice (Apache 2.0)
@@ -241,6 +241,6 @@ Copyright 2026 Spacebel. Licensed under the [Apache License 2.0](LICENSE); see a
 
 The component does not bundle the code of its dependencies: they are installed with it, each under its own licence
 (React and React Flow: MIT; elkjs: EPL-2.0, source code at https://github.com/kieler/elkjs).
-The only exception is the stylesheet of React Flow, included in `dist/style.css` with its MIT licence notice.
+The only exception is the stylesheet of React Flow, included in `lib-dist/style.css` with its MIT licence notice.
 The demo site bundles them: the build writes their licences, and where to get the source code of elkjs,
 to `third-party-licenses.md`, published with the site.
