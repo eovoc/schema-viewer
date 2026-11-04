@@ -31,6 +31,8 @@
     "build:lib": "vite build --config vite.lib.config.ts && tsc -p tsconfig.lib.json",
     "build:demo": "tsc && vite build",
     "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prepare": "npm run build:lib",
     "predeploy": "npm run build:demo",
     "deploy": "gh-pages -d demo-dist --nojekyll"
@@ -52,7 +54,8 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "typescript": "6.0.3",
-    "vite": "7.3.7"
+    "vite": "7.3.7",
+    "vitest": "4.1.12"
   },
   "engines": {
     "node": ">=22.12"

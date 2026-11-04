@@ -116,6 +116,7 @@ Another schema can be given in the field at the top of the page, or in the addre
 | `npm run build` | component (`dist/`) and demo site (`demo-dist/`, static files with relative paths, ready for GitHub Pages) |
 | `npm run build:lib` | component only (run automatically by `npm install`) |
 | `npm run preview` | serves `demo-dist/` |
+| `npm test` | unit tests (Vitest), once; `npm run test:watch` runs them again on each change |
 
 ## The diagram
 
@@ -223,11 +224,13 @@ src/                          demo site (uses the component like another applica
       index.css               stylesheet entry (React Flow styles + the files below), scoped under .schema-viewer
       base.css                CSS variables (colours, sizes) and layout of the viewer
       toc.css                 diagram.css  node.css  edge.css
+tests/                        unit tests (Vitest), same folders as src/lib/
 package.json                  dependencies, npm scripts, what the package exports
 vite.config.ts                Vite configuration of the demo
 vite.lib.config.ts            Vite configuration of the component build (dist/, adds the stylesheet)
 tsconfig.json                 TypeScript configuration
 tsconfig.lib.json             generation of the type declarations (dist/*.d.ts)
+vitest.config.ts              configuration of the unit tests
 LICENSE                       Apache 2.0 licence
 NOTICE                        copyright notice (Apache 2.0)
 ```
