@@ -1,7 +1,7 @@
 // Page state kept in the address bar, so a link can be shared and the back button works:
 //   ?schema=<URL of the root schema>&def=<definition, as a $ref from the root: "#/definitions/X", "mdj.json#/definitions/Y">
 
-export const DEFAULT_SCHEMA = "https://eovoc.github.io/eof-eos-validator/schemas/eof-eos-schema-soft.json";
+export const DEFAULT_SCHEMA = "https://eovoc.github.io/eof-eos-validator/schemas/eof-eos-schema-strict.json";
 
 export interface PageState {
   schema: string;
