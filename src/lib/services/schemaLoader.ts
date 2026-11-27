@@ -5,7 +5,9 @@
 //   "https://host/x.json#/…"      absolute: loaded as is
 //   "http://json-schema.org/…"    JSON Schema meta-schemas: never loaded
 import type { JsonSchema, LoadError, SchemaBundle } from "../types/schema";
-import { collectRefs, fileName, referencedDocument } from "../utils/refs";
+import {collectRefs, fileName, isDataUrl, referencedDocument} from "../utils/refs";
+
+export const  DEFAULT_PROVIDER_URL: string = "https://eovoc.github.io/eof-eos-validator/schemas/";
 
 export type FetchSchema = (url: string, signal?: AbortSignal) => Promise<JsonSchema>;
 
@@ -19,11 +21,15 @@ export interface LoadOptions {
 
 export const defaultFetchSchema: FetchSchema = async (url, signal) => {
   let res: Response;
-  try {
-    res = await fetch(url, { signal });
-  } catch (e) {
-    if (signal?.aborted) throw e;
-    throw new Error("network error (unreachable host or cross-origin requests not allowed)", { cause: e });
+  if (isDataUrl(url)) {
+    res = fromJsonDataUrl(url); // decoded locally: no network, errors are already explicit
+  } else {
+    try {
+      res = await fetch(url, { signal });
+    } catch (e) {
+      if (signal?.aborted) throw e;
+      throw new Error("network error (unreachable host or cross-origin requests not allowed)", { cause: e });
+    }
   }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   try {
@@ -32,6 +38,28 @@ export const defaultFetchSchema: FetchSchema = async (url, signal) => {
     throw new Error("not valid JSON", { cause: e });
   }
 };
+
+// data:application/json;base64,<data> URL of a JSON value. The JSON is encoded to UTF-8
+// first: btoa only accepts Latin-1 characters. Base64 also keeps the URL free of the
+// characters that would break a markdown link, such as ")" or spaces.
+export function fromJsonDataUrl(url: string): Response {
+  const match = /^data:([^,]*?)(;base64)?,(.*)$/is.exec(url.trim());
+  if (!match) throw new Error("invalid data URL");
+  const [, mediaType, base64, payload] = match;
+  let bytes: Uint8Array<ArrayBuffer>;
+  try {
+    if (base64) {
+      const encoded = decodeURIComponent(payload);
+      bytes = Uint8Array.fromBase64(encoded);
+    } else {
+      bytes = new TextEncoder().encode(decodeURIComponent(payload));
+    }
+  } catch (e) {
+    throw new Error("invalid data URL encoding", { cause: e });
+  }
+  const contentType = mediaType.split(";")[0].trim() || "application/json";
+  return new Response(bytes, { headers: { "Content-Type": `${contentType};charset=utf-8` } });
+}
 
 /** A document to load, and the document whose $ref points to it */
 interface Pending {
@@ -50,10 +78,15 @@ interface LoadState {
 /** URL of the document that `ref` points to; undefined for the same document, a meta-schema or an invalid reference (reported) */
 function targetDocument(ref: string, from: string, state: LoadState): string | undefined {
   try {
+    if(isDataUrl(from)){ //if 'from' is a data URL, replace with the default provider
+      from = DEFAULT_PROVIDER_URL;
+    }
     const url = referencedDocument(ref, from);
     return url === from ? undefined : url;
   } catch {
-    state.errors.push({ url: ref, from, message: "invalid reference" });
+    // a data: URL has no location: a relative reference ("mdj.json#/…") cannot be resolved against it
+    const message = isDataUrl(from) ? "relative reference, cannot be resolved from an inline (data: URL) schema" : "invalid reference";
+    state.errors.push({ url: ref, from, message });
     return undefined;
   }
 }
@@ -118,7 +151,13 @@ export async function loadSchemaBundle(rootUrl: string, options: LoadOptions = {
   } catch (e) {
     throw new Error(`${fileName(root)}: ${e instanceof Error ? e.message : e}`, { cause: e });
   }
-  await loadLevel([root], state, fetchSchema, signal);
+
+  if(isDataUrl(root)){
+    await loadLevel([DEFAULT_PROVIDER_URL], state, fetchSchema, signal);
+  }else{
+    await loadLevel([root], state, fetchSchema, signal);
+  }
+
 
   return { root, documents: state.documents, referencedBy: state.referencedBy, errors: state.errors };
 }

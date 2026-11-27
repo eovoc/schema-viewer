@@ -5,6 +5,7 @@ import { escapePointer, getPointer, pointerName } from "./jsonPointer";
 
 /** Last part of a URL: "https://host/schemas/mdj.json" -> "mdj.json" (query, fragment and trailing slashes ignored) */
 export function fileName(url: string): string {
+  if (isDataUrl(url)) return "inline schema"; // the payload is not a name
   const end = url.search(/[?#]/);
   let path = end < 0 ? url : url.slice(0, end);
   while (path.endsWith("/")) path = path.slice(0, -1);
@@ -25,13 +26,25 @@ export function collectRefs(schema: unknown, refs: string[] = []): string[] {
 }
 
 /**
+ * URL of the document `file` (the part of a $ref before "#") designates, resolved against document `from`.
+ * An empty `file` is `from` itself: new URL("", from) would do the same for http(s), but throws for a
+ * data: URL (no path to resolve against).
+ */
+export function documentUrl(file: string, from: string): string {
+  // if(isDataUrl(from)){
+  //   from = DEFAULT_PROVIDER_URL;
+  // }
+  return file ? new URL(file, from).href : from;
+}
+
+/**
  * URL of the document a $ref points to, or undefined when it points inside the same document
  * or to a JSON Schema meta-schema.
  */
 export function referencedDocument(ref: string, from: string): string | undefined {
   const file = ref.split("#")[0];
   if (!file) return undefined;
-  const url = new URL(file, from).href;
+  const url = documentUrl(file, from);
   return /^https?:\/\/json-schema\.org\//.test(url) ? undefined : url;
 }
 
@@ -70,7 +83,8 @@ export function resolveRef(ref: string, from: string, documents: Record<string, 
   }
   let url: string;
   try {
-    url = new URL(hash < 0 ? ref : ref.slice(0, hash), from).href;
+    console.log('resolving ref ['+ref+'] from url ['+from+']')
+    url = documentUrl(hash < 0 ? ref : ref.slice(0, hash), from);
   } catch {
     report(`${fileName(from)}: invalid reference "${ref}"`);
     return { label: ref };
@@ -107,4 +121,8 @@ export function relativeRef(id: string, base: string): string {
   const dir = base.slice(0, base.lastIndexOf("/") + 1);
   const relative = url.startsWith(dir) && !url.slice(dir.length).includes("/") ? url.slice(dir.length) : url;
   return `${relative}#${pointer}`;
+}
+
+export function isDataUrl(url:string): boolean{
+  return url.startsWith('data:');
 }

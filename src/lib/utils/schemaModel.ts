@@ -1,7 +1,7 @@
 // JSON Schema (draft-07, one or more documents) -> UML model: classes, attributes, relations.
 // The rules are listed in the README ("JSON Schema -> UML rules").
 import { escapePointer, getPointer, pointerName } from "./jsonPointer";
-import { collectRefs, fileName, resolveRef } from "./refs";
+import { collectRefs, documentUrl, fileName, resolveRef } from "./refs";
 import type { Attribute, Classifier, ClassifierKind, DefId, JsonSchema, Relation, RelationKind, SchemaBundle, SchemaModel } from "../types/schema";
 
 /** Generalization (inheritance): the edge goes from the subclass to the parent */
@@ -480,7 +480,7 @@ export function findDefinition(model: SchemaModel, ref: string): DefId | undefin
   let id: DefId | undefined;
   try {
     const hash = ref.indexOf("#");
-    const url = new URL(hash < 0 ? ref : ref.slice(0, hash), model.root).href;
+    const url = documentUrl(hash < 0 ? ref : ref.slice(0, hash), model.root);
     id = `${url}#${hash < 0 ? "" : decodeURIComponent(ref.slice(hash + 1))}`;
   } catch {
     return undefined;
